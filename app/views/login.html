@@ -1,0 +1,14 @@
+<include href="_layout_start.html" />
+<main>
+    <h1>Comasu Auth</h1>
+    <p>{{ @login_message }}</p>
+
+    <div class="actions">
+        <repeat group="{{ @providers }}" value="{{ @provider }}">
+            <button class="button" type="button" aria-disabled="true" disabled>{{ @provider.label }}</button>
+        </repeat>
+    </div>
+
+    <p class="notice" style="margin-top:24px">{{ @login.provider_pending }}</p>
+</main>
+<include href="_layout_end.html" />

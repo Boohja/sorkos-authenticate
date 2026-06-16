@@ -1,0 +1,25 @@
+<include href="_layout_start.html" />
+<main>
+    <h1>Local Auth Callback</h1>
+    <p>This endpoint is the callback target for the built-in test client.</p>
+    <dl>
+        <dt>Code</dt>
+        <dd>
+            <check if="{{ @code }}">
+                <true>{{ @code }}</true>
+                <false>No code returned yet</false>
+            </check>
+        </dd>
+        <dt>State valid</dt>
+        <dd>
+            <check if="{{ @state_ok }}">
+                <true>Yes</true>
+                <false>No</false>
+            </check>
+        </dd>
+        <dt>Expected state</dt><dd>{{ @expected_state }}</dd>
+        <dt>Received state</dt><dd>{{ @received_state }}</dd>
+    </dl>
+    <p><a href="/dev/test-client">Start another local test</a></p>
+</main>
+<include href="_layout_end.html" />

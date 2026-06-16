@@ -1,0 +1,27 @@
+<include href="_layout_start.html" />
+<main>
+    <h1>Local Auth Flow Test</h1>
+    <p>This page simulates a client project by generating a state value and linking to <code>/authorize</code>.</p>
+
+    <check if="{{ @dev_seed_status }}">
+        <p class="notice">{{ @dev_seed_status }}</p>
+    </check>
+
+    <dl>
+        <dt>Client ID</dt><dd>{{ @client_id }}</dd>
+        <dt>Redirect URI</dt><dd>{{ @redirect_uri }}</dd>
+    </dl>
+
+    <div class="actions">
+        <form method="post" action="/dev/test-client/seed">
+            <button class="button" type="submit">Create/update local test client</button>
+        </form>
+        <a class="button" href="{{ @authorize_url }}">Start authorize flow</a>
+        <a class="button" href="/dev/test-client?lang=de">Test in German</a>
+    </div>
+
+    <h2>Required local test client</h2>
+    <p>If <code>/authorize</code> reports an invalid client or redirect URL, run this SQL once in the same database:</p>
+    <pre>{{ @seed_sql }}</pre>
+</main>
+<include href="_layout_end.html" />
