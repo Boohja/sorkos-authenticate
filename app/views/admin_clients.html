@@ -1,0 +1,40 @@
+<include href="_layout_start.html" />
+<section class="panel wide">
+    <div class="admin-heading">
+        <div>
+            <h1>Clients</h1>
+            <p>Read-only maintenance view for registered auth clients.</p>
+        </div>
+        <form method="post" action="/admin/logout">
+            <button class="button" type="submit">Sign Out</button>
+        </form>
+    </div>
+
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Display Name</th>
+                    <th>Client ID</th>
+                    <th>Domain</th>
+                    <th>Providers</th>
+                    <th>Redirects</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <repeat group="{{ @clients }}" value="{{ @client }}">
+                    <tr>
+                        <td><a href="/admin/clients/{{ @client.id }}">{{ @client.display_name }}</a></td>
+                        <td><code>{{ @client.client_id }}</code></td>
+                        <td>{{ @client.domain ?: '-' }}</td>
+                        <td>{{ @client.enabled_providers }}</td>
+                        <td>{{ @client.redirect_uri_count }}</td>
+                        <td>{{ @client.is_active ? 'Active' : 'Inactive' }}</td>
+                    </tr>
+                </repeat>
+            </tbody>
+        </table>
+    </div>
+</section>
+<include href="_layout_end.html" />

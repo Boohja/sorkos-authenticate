@@ -1,3 +1,5 @@
 docs/
 app/config/local.php
 tmp/
+setup.lock
+setup.unlock

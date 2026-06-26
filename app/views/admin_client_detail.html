@@ -1,0 +1,83 @@
+<include href="_layout_start.html" />
+<section class="panel wide">
+    <div class="admin-heading">
+        <div>
+            <p><a href="/admin/clients">Back to clients</a></p>
+            <h1>{{ @client.display_name }}</h1>
+        </div>
+        <form method="post" action="/admin/logout">
+            <button class="button" type="submit">Sign Out</button>
+        </form>
+    </div>
+
+    <div class="detail-grid">
+        <section>
+            <h2>Client</h2>
+            <dl>
+                <dt>ID</dt><dd>{{ @client.id }}</dd>
+                <dt>Client ID</dt><dd><code>{{ @client.client_id }}</code></dd>
+                <dt>Name</dt><dd>{{ @client.name }}</dd>
+                <dt>Display Name</dt><dd>{{ @client.display_name }}</dd>
+                <dt>Domain</dt><dd>{{ @client.domain ?: '-' }}</dd>
+                <dt>Status</dt><dd>{{ @client.is_active ? 'Active' : 'Inactive' }}</dd>
+                <dt>Confidential</dt><dd>{{ @client.is_confidential ? 'Yes' : 'No' }}</dd>
+                <dt>Client Secret</dt><dd>{{ @client.client_secret_hash ? 'Provided' : 'Not provided' }}</dd>
+                <dt>Created</dt><dd>{{ @client.created_at }}</dd>
+                <dt>Updated</dt><dd>{{ @client.updated_at }}</dd>
+            </dl>
+        </section>
+        <section>
+            <h2>Login Settings</h2>
+            <dl>
+                <dt>Default Language</dt><dd>{{ @client.default_language }}</dd>
+                <dt>Allowed Languages</dt><dd>{{ @client.allowed_languages }}</dd>
+                <dt>Providers</dt><dd>{{ @client.enabled_providers }}</dd>
+            </dl>
+        </section>
+    </div>
+
+    <h2>Client Secret</h2>
+    <form class="form-stack" method="post" action="/admin/clients/{{ @client.id }}/secret">
+        <label for="client_secret">New client secret</label>
+        <input id="client_secret" name="client_secret" type="text" autocomplete="off">
+        <button class="button primary" type="submit">Store Secret Hash</button>
+    </form>
+
+    <h2>Redirect URIs</h2>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Redirect URI</th>
+                    <th>Created</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <repeat group="{{ @redirect_uris }}" value="{{ @redirect }}">
+                    <tr>
+                        <td><code>{{ @redirect.redirect_uri }}</code></td>
+                        <td>{{ @redirect.created_at }}</td>
+                        <td>
+                            <form method="post" action="/admin/clients/{{ @client.id }}/redirect-uris/{{ @redirect.id }}/delete">
+                                <button class="button danger-button" type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                </repeat>
+            </tbody>
+        </table>
+    </div>
+    <form class="form-inline" method="post" action="/admin/clients/{{ @client.id }}/redirect-uris">
+        <label for="redirect_uri">New redirect URI</label>
+        <input id="redirect_uri" name="redirect_uri" type="url" placeholder="https://example.com/auth/callback">
+        <button class="button primary" type="submit">Add Redirect URI</button>
+    </form>
+
+    <h2>Raw Configuration</h2>
+    <dl>
+        <dt>Branding JSON</dt><dd><pre>{{ @client.branding_json ?: '{}' }}</pre></dd>
+        <dt>Settings JSON</dt><dd><pre>{{ @client.settings_json ?: '{}' }}</pre></dd>
+    </dl>
+</section>
+<include href="_layout_end.html" />

@@ -51,6 +51,7 @@ class AuthController
         $this->render($f3, 'login.html', [
             'title' => $i18n->t('login.title'),
             'html_lang' => $i18n->language(),
+            'active_nav' => '',
             'i18n' => $i18n,
             'client' => $client,
             'login_message' => $i18n->t('login.continue_to', ['client' => $client['display_name']]),
@@ -63,6 +64,7 @@ class AuthController
         $this->render($f3, 'consent_pending.html', [
             'title' => $i18n->t('consent.title', ['client' => $client['display_name']]),
             'html_lang' => $i18n->language(),
+            'active_nav' => '',
             'i18n' => $i18n,
             'client' => $client,
             'user' => $user,
@@ -77,6 +79,7 @@ class AuthController
         $this->render($f3, 'error.html', [
             'title' => $i18n->t('error.title'),
             'html_lang' => $i18n->language(),
+            'active_nav' => '',
             'i18n' => $i18n,
             'error_key' => $error,
             'error_message' => $i18n->t($error),

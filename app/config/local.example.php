@@ -6,7 +6,7 @@ return [
     'app' => [
         'env' => 'production',
         'debug' => false,
-        'base_url' => 'https://auth.comasu.de',
+        'base_url' => 'https://auth.sorkos.net',
     ],
     'db' => [
         'enabled' => true,
@@ -15,10 +15,5 @@ return [
         'database' => 'database_name',
         'username' => 'database_user',
         'password' => 'database_password',
-    ],
-    'dev_client' => [
-        'enabled' => true,
-        'client_id' => 'local-test',
-        'redirect_uri' => 'http://auth.test/dev/callback',
     ],
 ];

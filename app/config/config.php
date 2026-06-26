@@ -18,7 +18,7 @@ function mergeConfig(array $base, array $override): array
 
 $config = [
     'app' => [
-        'name' => 'Comasu Auth',
+        'name' => 'Sorkos Login',
         'env' => 'local',
         'debug' => true,
         'timezone' => 'Europe/Berlin',
@@ -32,11 +32,6 @@ $config = [
         'username' => '',
         'password' => '',
         'charset' => 'utf8mb4',
-    ],
-    'dev_client' => [
-        'enabled' => true,
-        'client_id' => 'local-test',
-        'redirect_uri' => 'http://auth.test/dev/callback',
     ],
 ];
 

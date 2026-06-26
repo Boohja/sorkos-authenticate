@@ -1,0 +1,40 @@
+<include href="_layout_start.html" />
+<section class="panel wide">
+    <h1>Authentication Workflow</h1>
+    <p>This is the intended authorization-code flow between a client project, Sorkos Login, and the selected OAuth provider.</p>
+
+    <div class="endpoint">
+        <h2>1. Client Redirects To Sorkos Login</h2>
+        <p>The client project creates a random <code>state</code>, stores it in its own local session, and redirects the user to <code>/authorize</code>.</p>
+        <pre>{{ @request_origin }}/authorize?client_id=sorkos&amp;redirect_uri=https%3A%2F%2Fsorkos.net%2Fauth%2Fcallback&amp;response_type=code&amp;state=random-csrf-token&amp;lang=en</pre>
+    </div>
+
+    <div class="endpoint">
+        <h2>2. Sorkos Login Validates The Request</h2>
+        <p>Sorkos Login checks that the client exists, is active, supports the requested response type, and that the redirect URI is an exact registered match.</p>
+    </div>
+
+    <div class="endpoint">
+        <h2>3. User Signs In With A Provider</h2>
+        <p>If there is no central Sorkos Login session, the user chooses an enabled provider such as Google or Discord. Sorkos Login redirects to the provider and validates the provider callback.</p>
+    </div>
+
+    <div class="endpoint">
+        <h2>4. Sorkos Login Redirects Back To The Client</h2>
+        <p>After successful authentication, Sorkos Login creates a short-lived authorization code and redirects the user back to the original client callback.</p>
+        <pre>https://sorkos.net/auth/callback?code=abc123&amp;state=random-csrf-token</pre>
+    </div>
+
+    <div class="endpoint">
+        <h2>5. Client Exchanges The Code Server-Side</h2>
+        <p>The client validates the returned <code>state</code>, then posts the authorization code to <code>/token</code> from its server. If valid, Sorkos Login returns normalized user information.</p>
+    </div>
+
+    <div class="endpoint">
+        <h2>6. Client Creates Its Own Local Session</h2>
+        <p>The client stores its own local session data. Sorkos Login does not share cookies across projects and does not write sessions for client applications.</p>
+    </div>
+
+    <p class="notice">Current implementation status: <code>/authorize</code> validation and the provider-selection screen exist. Provider redirects, provider callbacks, authorization-code issuing, <code>/token</code>, and <code>/logout</code> are still upcoming implementation steps.</p>
+</section>
+<include href="_layout_end.html" />

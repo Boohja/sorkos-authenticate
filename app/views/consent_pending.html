@@ -1,10 +1,10 @@
 <include href="_layout_start.html" />
-<main>
+<section class="panel">
     <h1>{{ @consent_title }}</h1>
     <p>{{ @consent.pending }}</p>
     <dl>
         <dt>Client</dt><dd>{{ @client.display_name }}</dd>
         <dt>User</dt><dd>{{ @user.email ?: @user.public_id }}</dd>
     </dl>
-</main>
+</section>
 <include href="_layout_end.html" />

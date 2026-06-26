@@ -1,0 +1,31 @@
+<include href="_layout_start.html" />
+<section class="panel wide">
+    <h1>Admin Setup</h1>
+    <p class="notice">This one-time setup created the inactive admin user. Save the password, add the TOTP secret to your authenticator, then verify one code to activate the account.</p>
+
+    <check if="{{ @setup_error }}">
+        <p class="notice error">{{ @setup_error }}</p>
+    </check>
+
+    <h2>Credentials</h2>
+    <dl>
+        <dt>Username</dt>
+        <dd><code>{{ @setup_username }}</code></dd>
+        <dt>Password</dt>
+        <dd>
+            <check if="{{ @setup_password }}">
+                <true><input class="copy-field" type="text" value="{{ @setup_password }}" readonly></true>
+                <false><span class="muted">Only shown during the original setup session.</span></false>
+            </check>
+        </dd>
+        <dt>TOTP Secret</dt>
+        <dd><input class="copy-field" type="text" value="{{ @setup_totp_secret }}" readonly></dd>
+    </dl>
+    <h2>Activate</h2>
+    <form class="form-stack" method="post" action="/setup/verify">
+        <label for="totp_code">Six-digit authenticator code</label>
+        <input id="totp_code" name="totp_code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+        <button class="button primary" type="submit">Activate Admin</button>
+    </form>
+</section>
+<include href="_layout_end.html" />

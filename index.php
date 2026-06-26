@@ -38,6 +38,7 @@ $f3->set('APP_CONFIG', $config);
 $f3->set('UI', __DIR__ . '/app/views/');
 $f3->set('LOCALES', __DIR__ . '/app/lang/');
 $f3->set('LANGUAGE', 'en');
+$f3->set('REROUTE_TRAILING_SLASH', false);
 
 if (!empty($config['app']['timezone'])) {
     date_default_timezone_set($config['app']['timezone']);
