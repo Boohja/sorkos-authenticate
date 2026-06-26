@@ -4,21 +4,38 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ @title ?: 'Sorkos Login' }}</title>
+    <link rel="icon" href="/public/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" href="/public/favicon.png" sizes="32x32">
+    <link rel="apple-touch-icon" href="/public/faviconL.png">
     <link rel="stylesheet" href="/public/css/app.css">
 </head>
-<body>
-<header class="site-header">
-    <div class="site-header-inner">
-        <a class="brand" href="/">
-            <img class="brand-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
-            <span class="brand-divider" aria-hidden="true"></span>
-            <span class="brand-name">Login</span>
-        </a>
-        <nav class="site-nav" aria-label="Main navigation">
-            <a href="/" class="{{ @active_nav=='home' ? 'active' : '' }}">Status</a>
-            <a href="/docs/" class="{{ @active_nav=='docs' ? 'active' : '' }}">Docs</a>
-            <a href="/admin" class="{{ @active_nav=='admin' ? 'active' : '' }}">Admin</a>
-        </nav>
-    </div>
-</header>
-<main class="page">
+<body class="{{ @layout_variant=='split' ? 'split-layout' : '' }}">
+<check if="{{ @layout_variant=='split' }}">
+    <true>
+        <div class="split-shell">
+            <aside class="split-media" aria-hidden="true">
+                <img class="split-media-image" src="/public/img/door.webp" alt="">
+            </aside>
+            <div class="split-column">
+                <header class="split-header">
+                    <a class="brand" href="/">
+                        <img class="brand-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
+                        <span class="brand-divider" aria-hidden="true"></span>
+                        <span class="brand-name">Login</span>
+                    </a>
+                </header>
+                <main class="page split-page">
+    </true>
+    <false>
+        <header class="site-header">
+            <div class="site-header-inner">
+                <a class="brand" href="/">
+                    <img class="brand-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
+                    <span class="brand-divider" aria-hidden="true"></span>
+                    <span class="brand-name">Login</span>
+                </a>
+            </div>
+        </header>
+        <main class="page">
+    </false>
+</check>

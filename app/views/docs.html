@@ -1,11 +1,19 @@
 <include href="_layout_start.html" />
 <section class="panel wide">
     <h1>Documentation</h1>
-    <p>Sorkos Login has two documentation pages: one for the API contract and one for the authentication workflow. The current base URL is <code>{{ @request_origin }}</code>.</p>
+    <p>Reference notes for integrating Sorkos Login into client projects.</p>
 
-    <div class="actions">
-        <a class="button primary" href="/docs/api">API endpoints</a>
-        <a class="button" href="/docs/workflow">Authentication workflow</a>
+    <p class="notice">This system is for registered Sorkos projects only. Access requires a configured client project and is not intended for public self-service use.</p>
+
+    <div class="doc-sections">
+        <a class="doc-section" href="/docs/api">
+            <strong>API endpoints</strong>
+            <span>Request and response details for the OAuth-style authorization endpoints.</span>
+        </a>
+        <a class="doc-section" href="/docs/workflow">
+            <strong>Authentication workflow</strong>
+            <span>The browser redirect sequence clients should follow from start to callback.</span>
+        </a>
     </div>
 </section>
 <include href="_layout_end.html" />

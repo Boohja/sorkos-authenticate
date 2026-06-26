@@ -42,6 +42,7 @@ class HomeController
         $f3->set('title', 'Sorkos Login');
         $f3->set('html_lang', 'en');
         $f3->set('active_nav', 'home');
+        $f3->set('layout_variant', 'split');
         $f3->set('environment', (string) ($config['app']['env'] ?? 'local'));
         $f3->set('db_status', $dbStatus);
         $f3->set('base_url', (string) ($config['app']['base_url'] ?? ''));
