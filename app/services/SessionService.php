@@ -10,6 +10,7 @@ use PDOException;
 class SessionService
 {
     private const AUTH_COOKIE = 'comasu_auth';
+    private const SESSION_TTL_DAYS = 30;
 
     private Db $db;
 
@@ -21,6 +22,65 @@ class SessionService
     public function storePendingAuthorizeRequest(array $request): void
     {
         $_SESSION['pending_authorize'] = $request;
+    }
+
+    public function pendingAuthorizeRequest(): ?array
+    {
+        $request = $_SESSION['pending_authorize'] ?? null;
+
+        return is_array($request) ? $request : null;
+    }
+
+    public function pendingAuthorizeUrl(): string
+    {
+        $request = $this->pendingAuthorizeRequest();
+
+        if ($request === null) {
+            return '/authorize';
+        }
+
+        $query = [
+            'client_id' => $request['client_id'] ?? '',
+            'redirect_uri' => $request['redirect_uri'] ?? '',
+            'response_type' => $request['response_type'] ?? 'code',
+            'state' => $request['state'] ?? '',
+            'scope' => $request['scope'] ?? '',
+            'lang' => $request['lang'] ?? '',
+        ];
+        $query = array_filter($query, static fn ($value): bool => (string) $value !== '');
+
+        return '/authorize?' . http_build_query($query);
+    }
+
+    public function createSession(array $user): void
+    {
+        $token = bin2hex(random_bytes(32));
+        $now = date('Y-m-d H:i:s');
+        $expires = date('Y-m-d H:i:s', time() + self::SESSION_TTL_DAYS * 86400);
+
+        $stmt = $this->db->pdo()->prepare(
+            'INSERT INTO auth_sessions
+                (session_hash, user_id, user_agent_hash, ip_hash, created_at, expires_at)
+             VALUES
+                (:session_hash, :user_id, :user_agent_hash, :ip_hash, :created_at, :expires_at)'
+        );
+        $stmt->execute([
+            'session_hash' => hash('sha256', $token),
+            'user_id' => (int) $user['id'],
+            'user_agent_hash' => $this->requestHash((string) ($_SERVER['HTTP_USER_AGENT'] ?? '')),
+            'ip_hash' => $this->requestHash((string) ($_SERVER['REMOTE_ADDR'] ?? '')),
+            'created_at' => $now,
+            'expires_at' => $expires,
+        ]);
+
+        setcookie(self::AUTH_COOKIE, $token, [
+            'expires' => time() + self::SESSION_TTL_DAYS * 86400,
+            'path' => '/',
+            'secure' => $this->isSecureRequest(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        $_COOKIE[self::AUTH_COOKIE] = $token;
     }
 
     public function currentUser(): ?array
@@ -47,5 +107,16 @@ class SessionService
         }
 
         return is_array($user) ? $user : null;
+    }
+
+    private function requestHash(string $value): ?string
+    {
+        return $value === '' ? null : hash('sha256', $value);
+    }
+
+    private function isSecureRequest(): bool
+    {
+        return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
     }
 }

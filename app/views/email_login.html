@@ -1,0 +1,15 @@
+<include href="_layout_start.html" />
+<section class="panel auth-panel">
+    <h1>{{ @email.title }}</h1>
+    <p>{{ @email.prompt }}</p>
+
+    <form class="form-stack auth-form" method="post" action="/oauth/email" novalidate>
+        <label for="email">{{ @email.label }}</label>
+        <input id="email" name="email" type="email" inputmode="email" autocomplete="email" value="{{ @email_value }}" required>
+        <check if="{{ @email_error }}">
+            <p class="notice error">{{ @email_error }}</p>
+        </check>
+        <button class="button primary" type="submit">{{ @email.submit }}</button>
+    </form>
+</section>
+<include href="_layout_end.html" />

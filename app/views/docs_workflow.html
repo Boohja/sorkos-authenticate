@@ -63,7 +63,7 @@ app.get('/login', (req, res) => {
 
     <div class="endpoint">
         <h2>3. User Signs In With A Provider</h2>
-        <p>If there is no central Sorkos Login session, the user chooses an enabled provider such as <a href="/docs/api#/Authorization/get_oauth_google_start">Google</a> or <a href="/docs/api#/Authorization/get_oauth_discord_start">Discord</a>. Sorkos Login redirects to the provider and validates the <a href="/docs/api#/Authorization/get_oauth_google_callback">provider callback</a>.</p>
+        <p>If there is no central Sorkos Login session, the user chooses an enabled provider. The first implemented provider is E-Mail, which sends a six-digit one-time code through Sorkos Login's internal browser provider flow. Google and Discord remain configured placeholders until their external OAuth callbacks are implemented.</p>
     </div>
 
     <div class="endpoint">
@@ -167,6 +167,6 @@ const tokenResult = await response.json();</pre>
         <p>The client stores its own local session data. Sorkos Login does not share cookies across projects and does not write sessions for client applications.</p>
     </div>
 
-    <p class="notice">Current implementation status: <code>/authorize</code> validation and the provider-selection screen exist. Provider redirects, provider callbacks, authorization-code issuing, <code>/token</code>, and <code>/logout</code> are still upcoming implementation steps.</p>
+    <p class="notice">Current implementation status: <code>/authorize</code> validation, the provider-selection screen, and first-party E-Mail login exist. External OAuth providers, authorization-code issuing, <code>/token</code>, and <code>/logout</code> are still upcoming implementation steps.</p>
 </section>
 <include href="_layout_end.html" />

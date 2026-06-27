@@ -23,6 +23,7 @@ $config = [
         'debug' => true,
         'timezone' => 'Europe/Berlin',
         'base_url' => 'http://auth.test',
+        'auth_secret' => '',
     ],
     'db' => [
         'enabled' => false,

@@ -7,7 +7,7 @@
     <link rel="icon" href="/public/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" href="/public/favicon.png" sizes="32x32">
     <link rel="apple-touch-icon" href="/public/faviconL.png">
-    <link rel="stylesheet" href="/public/css/app.css">
+    <link rel="stylesheet" href="/public/css/app.css?v=20260627-auth-lockup-grid">
 </head>
 <body class="{{ @layout_variant=='split' ? 'split-layout' : '' }}">
 <check if="{{ @layout_variant=='split' }}">
@@ -15,15 +15,22 @@
         <div class="split-shell">
             <aside class="split-media" aria-hidden="true">
                 <img class="split-media-image" src="/public/img/door.webp" alt="">
+                <check if="{{ @client_icon }}">
+                    <div class="split-client-icon">
+                        <img src="{{ @client_icon }}" alt="">
+                    </div>
+                </check>
             </aside>
             <div class="split-column">
-                <header class="split-header">
-                    <a class="brand" href="/">
-                        <img class="brand-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
-                        <span class="brand-divider" aria-hidden="true"></span>
-                        <span class="brand-name">Login</span>
-                    </a>
-                </header>
+                <check if="{{ !@hide_split_header }}">
+                    <header class="split-header">
+                        <a class="brand" href="/">
+                            <img class="brand-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
+                            <span class="brand-divider" aria-hidden="true"></span>
+                            <span class="brand-name">Login</span>
+                        </a>
+                    </header>
+                </check>
                 <main class="page split-page">
     </true>
     <false>

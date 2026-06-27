@@ -1,0 +1,82 @@
+<include href="_layout_start.html" />
+<section class="panel auth-panel">
+    <h1>{{ @email.code_title }}</h1>
+    <p>{{ @code_sent_message }}</p>
+
+    <check if="{{ !@mail_sent }}">
+        <p class="notice error">{{ @email.mail_failed }}</p>
+    </check>
+
+    <form class="form-stack auth-form" method="post" action="/oauth/email/verify" data-code-form>
+        <label for="code-1">{{ @email.code_label }}</label>
+        <div class="code-inputs" data-code-inputs>
+            <input id="code-1" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="1" value="{{ substr(@prefill_code, 0, 1) }}" aria-label="{{ @email.code_digit }} 1">
+            <input id="code-2" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 1, 1) }}" aria-label="{{ @email.code_digit }} 2">
+            <input id="code-3" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 2, 1) }}" aria-label="{{ @email.code_digit }} 3">
+            <input id="code-4" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 3, 1) }}" aria-label="{{ @email.code_digit }} 4">
+            <input id="code-5" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 4, 1) }}" aria-label="{{ @email.code_digit }} 5">
+            <input id="code-6" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 5, 1) }}" aria-label="{{ @email.code_digit }} 6">
+        </div>
+        <input type="hidden" name="code_full" value="{{ @prefill_code }}" data-code-full>
+        <check if="{{ @code_error }}">
+            <p class="notice error">{{ @code_error }}</p>
+        </check>
+        <button class="button primary" type="submit">{{ @email.code_submit }}</button>
+    </form>
+</section>
+
+<script>
+    (function () {
+        var form = document.querySelector('[data-code-form]');
+        var fields = Array.prototype.slice.call(document.querySelectorAll('[data-code-inputs] input'));
+        var full = document.querySelector('[data-code-full]');
+
+        if (!form || fields.length !== 6 || !full) {
+            return;
+        }
+
+        function value() {
+            return fields.map(function (field) { return field.value; }).join('');
+        }
+
+        function sync() {
+            full.value = value();
+
+            if (/^\d{6}$/.test(full.value)) {
+                form.submit();
+            }
+        }
+
+        fields.forEach(function (field, index) {
+            field.addEventListener('input', function () {
+                var digits = field.value.replace(/\D/g, '');
+                field.value = digits.slice(-1);
+
+                if (digits.length > 1) {
+                    digits.slice(0, 6).split('').forEach(function (digit, offset) {
+                        if (fields[index + offset]) {
+                            fields[index + offset].value = digit;
+                        }
+                    });
+                }
+
+                if (field.value && fields[index + 1]) {
+                    fields[index + 1].focus();
+                }
+
+                sync();
+            });
+
+            field.addEventListener('keydown', function (event) {
+                if (event.key === 'Backspace' && !field.value && fields[index - 1]) {
+                    fields[index - 1].focus();
+                }
+            });
+        });
+
+        var firstEmpty = fields.find(function (field) { return !field.value; });
+        (firstEmpty || fields[0]).focus();
+        sync();
+    }());
+</script>
+<include href="_layout_end.html" />

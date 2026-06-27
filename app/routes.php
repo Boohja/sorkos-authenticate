@@ -12,6 +12,14 @@ $f3->route(['GET /docs', 'GET /docs/'], function (Base $f3): void {
     (new App\Controllers\DocsController())->index($f3);
 });
 
+$f3->route(['GET /about', 'GET /about/'], function (Base $f3): void {
+    (new App\Controllers\HomeController())->about($f3);
+});
+
+$f3->route(['GET /privacy', 'GET /privacy/'], function (Base $f3): void {
+    (new App\Controllers\HomeController())->privacy($f3);
+});
+
 $f3->route('GET /docs/api', function (Base $f3): void {
     (new App\Controllers\DocsController())->api($f3);
 });
@@ -26,6 +34,22 @@ $f3->route('GET /docs/workflow', function (Base $f3): void {
 
 $f3->route('GET /authorize', function (Base $f3): void {
     (new App\Controllers\AuthController())->authorize($f3);
+});
+
+$f3->route('GET /oauth/email', function (Base $f3): void {
+    (new App\Controllers\AuthController())->emailForm($f3);
+});
+
+$f3->route('POST /oauth/email', function (Base $f3): void {
+    (new App\Controllers\AuthController())->sendEmailCode($f3);
+});
+
+$f3->route('GET /oauth/email/verify', function (Base $f3): void {
+    (new App\Controllers\AuthController())->emailCodeForm($f3);
+});
+
+$f3->route('POST /oauth/email/verify', function (Base $f3): void {
+    (new App\Controllers\AuthController())->verifyEmailCode($f3);
 });
 
 $f3->route('GET /setup', function (Base $f3): void {

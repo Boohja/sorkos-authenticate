@@ -3,7 +3,7 @@
   "info": {
     "title": "Sorkos Login API",
     "version": "1.0.0",
-    "description": "Endpoint contract for client projects integrating with Sorkos Login. This system is for registered Sorkos projects only and is not intended for public self-service use.\n\nImplementation status: /authorize validation and the provider-selection screen exist. Provider redirects, provider callbacks, authorization-code issuing, /token, and /logout are planned but not implemented yet."
+    "description": "Endpoint contract for client projects integrating with Sorkos Login. This system is for registered Sorkos projects only and is not intended for public self-service use.\n\nImplementation status: /authorize validation, the provider-selection screen, and first-party E-Mail login exist. External OAuth providers, authorization-code issuing, /token, and /logout are planned but not implemented yet."
   },
   "servers": [
     {
@@ -14,7 +14,11 @@
   "tags": [
     {
       "name": "Authorization",
-      "description": "Browser-facing authorization-code flow endpoints."
+      "description": "Client integration entry points. Client projects should start sign-in here, especially with /authorize."
+    },
+    {
+      "name": "Browser Provider Flow",
+      "description": "Internal browser-facing provider steps used after /authorize. Client projects must not call or link to these endpoints directly."
     },
     {
       "name": "Token",
@@ -118,6 +122,147 @@
           },
           "400": {
             "description": "Invalid client, redirect URI, response type, or missing state.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/email": {
+      "get": {
+        "tags": ["Browser Provider Flow"],
+        "summary": "Internal browser step: show E-Mail login form",
+        "description": "Shows the first-party E-Mail provider form after a valid /authorize request has been stored in the browser session. Client projects must not call or link to this endpoint directly; they should start sign-in at /authorize.",
+        "responses": {
+          "200": {
+            "description": "Email address form.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No pending authorization request or provider not enabled.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Browser Provider Flow"],
+        "summary": "Internal browser step: send E-Mail login code",
+        "description": "Creates a short-lived six-digit login code and sends it with PHP mail() from login@sorkos.net. This endpoint belongs to the Sorkos Login browser flow after /authorize, not to the external client integration contract.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "user@example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Code entry form.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No pending authorization request or provider not enabled.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/email/verify": {
+      "get": {
+        "tags": ["Browser Provider Flow"],
+        "summary": "Internal browser step: show E-Mail code form",
+        "description": "Shows the six-digit code form for the current browser session's email login challenge. Client projects must not call or link to this endpoint directly; they should start sign-in at /authorize.",
+        "responses": {
+          "200": {
+            "description": "Code entry form.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Redirect to /oauth/email if no email challenge exists."
+          }
+        }
+      },
+      "post": {
+        "tags": ["Browser Provider Flow"],
+        "summary": "Internal browser step: verify E-Mail login code",
+        "description": "Verifies a single-use six-digit login code, creates or updates the local user and email identity, creates the central Sorkos Login session, then continues the original /authorize request. This endpoint is for the Sorkos Login browser flow, not direct client integration.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[0-9]$"
+                    },
+                    "minItems": 6,
+                    "maxItems": 6
+                  },
+                  "code_full": {
+                    "type": "string",
+                    "pattern": "^[0-9]{6}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "Code accepted; redirects back through /authorize with the new central auth session."
+          },
+          "200": {
+            "description": "Code entry form with a localized validation error.",
             "content": {
               "text/html": {
                 "schema": {

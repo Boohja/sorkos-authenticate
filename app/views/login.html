@@ -1,14 +1,40 @@
 <include href="_layout_start.html" />
 <section class="panel auth-panel">
-    <h1>Sorkos Login</h1>
-    <p>{{ @login_message }}</p>
+    <h1 class="auth-title">
+        <span class="auth-client-mark">
+            <check if="{{ @client_logo }}">
+                <true><img class="client-logo" src="{{ @client_logo }}" alt="{{ @client.display_name }}"></true>
+                <false><strong class="client-name">{{ @client.display_name }}</strong></false>
+            </check>
+        </span>
+        <span class="auth-trust-row">
+            <span class="auth-trust-word">uses</span>
+            <img class="sorkos-auth-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
+        </span>
+    </h1>
+
+    <p class="auth-copy">{{ @login_prompt }}</p>
 
     <div class="actions">
         <repeat group="{{ @providers }}" value="{{ @provider }}">
-            <button class="button" type="button" aria-disabled="true" disabled>{{ @provider.label }}</button>
+            <check if="{{ @provider.enabled }}">
+                <true>
+                    <a class="button provider-button primary" href="{{ @provider.href }}">
+                        <check if="{{ @provider.icon }}"><span class="provider-icon">{{ @provider.icon | raw }}</span></check>
+                        <span>{{ @provider.label }}</span>
+                    </a>
+                </true>
+                <false>
+                    <button class="button provider-button" type="button" aria-disabled="true" disabled>
+                        <check if="{{ @provider.icon }}"><span class="provider-icon">{{ @provider.icon | raw }}</span></check>
+                        <span>{{ @provider.label }}</span>
+                    </button>
+                </false>
+            </check>
         </repeat>
     </div>
 
-    <p class="notice" style="margin-top:24px">{{ @login.provider_pending }}</p>
+    <p class="notice auth-notice">{{ @login.provider_pending }}</p>
+    <p class="privacy-link">Check our <a href="/privacy/">data privacy</a> section for more information.</p>
 </section>
 <include href="_layout_end.html" />

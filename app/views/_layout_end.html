@@ -10,8 +10,12 @@
         <span>&copy;{{ date('Y') }} by <a href="https://sorkos.net" style="color: #000818; text-decoration: none;">sorkos.net</a></span>
         <nav class="footer-nav" aria-label="Footer navigation">
             <a href="/" class="{{ @active_nav=='home' ? 'active' : '' }}">Home</a>
-            <a href="/docs/" class="{{ @active_nav=='docs' ? 'active' : '' }}">Docs</a>
-            <a href="/admin" class="{{ @active_nav=='admin' ? 'active' : '' }}">Admin</a>
+            <a href="/about/" class="{{ @active_nav=='about' ? 'active' : '' }}">About</a>
+            <a href="/privacy/" class="{{ @active_nav=='privacy' ? 'active' : '' }}">Data privacy</a>
+            <span class="footer-utility">
+                <a href="/docs/" class="{{ @active_nav=='docs' ? 'active' : '' }}">Docs</a>
+                <a href="/admin" class="{{ @active_nav=='admin' ? 'active' : '' }}">Admin</a>
+            </span>
         </nav>
     </div>
 </footer>

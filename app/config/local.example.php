@@ -7,6 +7,7 @@ return [
         'env' => 'production',
         'debug' => false,
         'base_url' => 'https://auth.sorkos.net',
+        'auth_secret' => 'replace-with-a-long-random-secret',
     ],
     'db' => [
         'enabled' => true,

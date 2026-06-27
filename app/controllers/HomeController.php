@@ -43,9 +43,32 @@ class HomeController
         $f3->set('html_lang', 'en');
         $f3->set('active_nav', 'home');
         $f3->set('layout_variant', 'split');
+        $f3->set('hide_split_header', false);
+        $f3->set('client_icon', '');
         $f3->set('environment', (string) ($config['app']['env'] ?? 'local'));
         $f3->set('db_status', $dbStatus);
         $f3->set('base_url', (string) ($config['app']['base_url'] ?? ''));
         echo \Template::instance()->render('home.html');
+    }
+
+    public function about(Base $f3): void
+    {
+        $this->renderStatic($f3, 'About Sorkos Login', 'about.html', 'about');
+    }
+
+    public function privacy(Base $f3): void
+    {
+        $this->renderStatic($f3, 'Data Privacy - Sorkos Login', 'privacy.html', 'privacy');
+    }
+
+    private function renderStatic(Base $f3, string $title, string $template, string $activeNav): void
+    {
+        $f3->set('title', $title);
+        $f3->set('html_lang', 'en');
+        $f3->set('active_nav', $activeNav);
+        $f3->set('layout_variant', '');
+        $f3->set('hide_split_header', false);
+        $f3->set('client_icon', '');
+        echo \Template::instance()->render($template);
     }
 }

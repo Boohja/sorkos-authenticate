@@ -53,13 +53,30 @@ CREATE TABLE auth_clients (
   domain VARCHAR(255) NULL,
   default_language VARCHAR(8) NOT NULL DEFAULT 'en',
   allowed_languages VARCHAR(255) NOT NULL DEFAULT 'en,de',
-  enabled_providers VARCHAR(255) NOT NULL DEFAULT 'google,discord',
+  enabled_providers VARCHAR(255) NOT NULL DEFAULT 'email,google,discord',
   branding_json JSON NULL,
   settings_json JSON NULL,
   is_confidential TINYINT(1) NOT NULL DEFAULT 1,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE auth_email_login_codes (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  selector_hash CHAR(64) NOT NULL UNIQUE,
+  code_hash CHAR(64) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  client_id BIGINT UNSIGNED NOT NULL,
+  attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  expires_at DATETIME NOT NULL,
+  consumed_at DATETIME NULL,
+  KEY idx_email_expires (email, expires_at),
+  KEY idx_client_id (client_id),
+  CONSTRAINT fk_email_login_client
+    FOREIGN KEY (client_id) REFERENCES auth_clients(id)
+    ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE auth_client_redirect_uris (
