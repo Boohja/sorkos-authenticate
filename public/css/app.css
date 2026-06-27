@@ -373,6 +373,109 @@ pre {
   padding-top: 22px;
 }
 
+.code-example {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.code-example summary {
+  cursor: pointer;
+  padding: 13px 16px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.code-example[open] summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.code-tabs {
+  padding: 14px 16px 16px;
+}
+
+.code-tabs input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tab-list label {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 7px 11px;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.code-tabs input[id$="-php"]:checked ~ .tab-list label[for$="-php"],
+.code-tabs input[id$="-node"]:checked ~ .tab-list label[for$="-node"] {
+  border-color: var(--accent);
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.code-tabs input[id$="-php"]:checked ~ .php-panel,
+.code-tabs input[id$="-node"]:checked ~ .node-panel {
+  display: block;
+}
+
+.code-tabs pre {
+  margin: 0;
+}
+
+.swagger-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.swagger-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 32px 32px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.swagger-heading h1 {
+  margin-bottom: 8px;
+}
+
+.swagger-heading p {
+  margin-bottom: 0;
+}
+
+.swagger-json-link {
+  width: auto;
+  min-width: 112px;
+}
+
+.swagger-ui-root {
+  background: var(--surface);
+  padding: 20px 24px 28px;
+}
+
+.swagger-ui-root .swagger-ui .info {
+  margin: 24px 0;
+}
+
 .method {
   display: inline-block;
   min-width: 48px;
@@ -574,6 +677,15 @@ pre {
 
   .admin-heading {
     flex-direction: column;
+  }
+
+  .swagger-heading {
+    flex-direction: column;
+    padding: 24px;
+  }
+
+  .swagger-json-link {
+    width: 100%;
   }
 
   .detail-grid {

@@ -18,6 +18,21 @@ class DocsController
         $this->render($f3, 'API - Sorkos Login', 'docs_api.html');
     }
 
+    public function openapi(Base $f3): void
+    {
+        $path = dirname(__DIR__) . '/openapi.json';
+
+        if (!is_file($path)) {
+            http_response_code(404);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['error' => 'openapi_not_found']);
+            return;
+        }
+
+        header('Content-Type: application/json; charset=utf-8');
+        readfile($path);
+    }
+
     public function workflow(Base $f3): void
     {
         $this->render($f3, 'Workflow - Sorkos Login', 'docs_workflow.html');

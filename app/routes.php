@@ -16,6 +16,10 @@ $f3->route('GET /docs/api', function (Base $f3): void {
     (new App\Controllers\DocsController())->api($f3);
 });
 
+$f3->route('GET /docs/openapi.json', function (Base $f3): void {
+    (new App\Controllers\DocsController())->openapi($f3);
+});
+
 $f3->route('GET /docs/workflow', function (Base $f3): void {
     (new App\Controllers\DocsController())->workflow($f3);
 });
