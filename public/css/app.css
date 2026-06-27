@@ -494,13 +494,13 @@ pre {
 }
 
 .split-layout .site-footer {
-  border-top-color: #0b2450;
-  background: #020914;
+  border-top-color: #235bab;
+  background: #2f81f7;
 }
 
 .split-layout .site-footer-inner,
 .split-layout .footer-nav a {
-  color: #9aa4b2;
+  color: #203a5f;
 }
 
 .split-layout .footer-nav a.active {
