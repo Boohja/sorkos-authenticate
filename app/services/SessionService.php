@@ -9,7 +9,7 @@ use PDOException;
 
 class SessionService
 {
-    private const AUTH_COOKIE = 'comasu_auth';
+    private const AUTH_COOKIE = 'sorkos_login';
     private const SESSION_TTL_DAYS = 30;
     private const PENDING_AUTHORIZE_TTL_SECONDS = 900;
 

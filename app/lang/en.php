@@ -23,7 +23,7 @@ return [
     'email.rate_limited_email' => 'Too many codes were requested for this email address. Try again later.',
     'email.rate_limited_client' => 'Too many codes were requested for this app. Try again later.',
     'email.code_title' => 'Check your email',
-    'email.code_sent' => 'An email with a six-digit code was sent to {0}. Enter the code below.',
+    'email.code_sent' => 'An email with a six-digit code was sent to <code>{0}</code>. Enter the code below.',
     'email.code_label' => 'Login code',
     'email.code_digit' => 'Code digit',
     'email.code_submit' => 'Verify code',

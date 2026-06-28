@@ -23,7 +23,7 @@ return [
     'email.rate_limited_email' => 'Für diese E-Mail-Adresse wurden zu viele Codes angefordert. Versuche es später erneut.',
     'email.rate_limited_client' => 'Für diese App wurden zu viele Codes angefordert. Versuche es später erneut.',
     'email.code_title' => 'Prüfe deine E-Mails',
-    'email.code_sent' => 'Eine E-Mail mit einem sechsstelligen Code wurde an {0} gesendet. Gib den Code unten ein.',
+    'email.code_sent' => 'Eine E-Mail mit einem sechsstelligen Code wurde an <code>{0}</code> gesendet. Gib den Code unten ein.',
     'email.code_label' => 'Anmeldecode',
     'email.code_digit' => 'Code-Ziffer',
     'email.code_submit' => 'Code prüfen',

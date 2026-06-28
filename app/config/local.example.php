@@ -6,6 +6,7 @@ return [
     'app' => [
         'env' => 'production',
         'debug' => false,
+        'debug_footer' => false,
         'base_url' => 'https://auth.sorkos.net',
         'auth_secret' => 'replace-with-a-long-random-secret',
     ],

@@ -18,6 +18,7 @@
             </span>
         </nav>
     </div>
+    {{ App\Services\DebugFooterService::html(Base::instance()) | raw }}
 </footer>
 </body>
 </html>

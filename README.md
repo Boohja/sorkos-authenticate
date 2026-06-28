@@ -15,6 +15,7 @@ Every config entry added to `app/config/config.php` or `app/config/local.example
 | `name` | Human-readable app name. |
 | `env` | Environment label, for example `local` or `production`. |
 | `debug` | Enables verbose debug output when true. Keep false in production. |
+| `debug_footer` | Shows request, PHP session, pending authorize, email challenge, and auth-session lookup details in the page footer when true. Intended for local flow debugging only. |
 | `timezone` | PHP timezone used for generated timestamps. |
 | `base_url` | Public base URL used as a fallback when request headers do not provide the current origin. |
 | `auth_secret` | App-wide cryptographic secret used for HMAC hashing of email login codes. Use a long random value in production. |

@@ -911,8 +911,10 @@ pre {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   min-height: 64px;
   gap: 16px;
+  padding: 0 16px;
   color: var(--muted);
   font-size: 14px;
 }
@@ -938,6 +940,90 @@ pre {
 
 .split-layout .footer-utility a {
   color: rgba(32, 58, 95, .68);
+}
+
+.debug-footer {
+  width: min(1040px, calc(100% - 32px));
+  margin: 0 auto;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding: 14px 0 18px;
+  color: var(--muted);
+}
+
+.debug-footer-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.debug-footer-heading strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.debug-footer-heading span {
+  font-size: 12px;
+}
+
+.debug-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.debug-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 88%, #d9e2ec);
+  padding: 12px;
+}
+
+.debug-card h2 {
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.debug-card dl {
+  display: grid;
+  grid-template-columns: minmax(84px, max-content) minmax(0, 1fr);
+  gap: 7px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.debug-card dt {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.debug-card dd {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.debug-card code {
+  display: inline-block;
+  max-width: 100%;
+  background: #101418;
+  color: #d9e2ec;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.debug-card span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 @media (max-width: 900px) {

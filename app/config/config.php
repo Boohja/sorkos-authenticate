@@ -21,6 +21,7 @@ $config = [
         'name' => 'Sorkos Login',
         'env' => 'local',
         'debug' => true,
+        'debug_footer' => true,
         'timezone' => 'Europe/Berlin',
         'base_url' => 'http://auth.test',
         'auth_secret' => '',
