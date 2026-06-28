@@ -1,6 +1,6 @@
 <include href="_layout_start.html" />
 <section class="panel auth-panel">
     <h1>{{ @error.title }}</h1>
-    <p class="notice error">{{ @error_message }}</p>
+    <p class="notice error">{{ Base::instance()->get(@error_key) }}</p>
 </section>
 <include href="_layout_end.html" />

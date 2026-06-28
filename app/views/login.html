@@ -8,12 +8,12 @@
             </check>
         </span>
         <span class="auth-trust-row">
-            <span class="auth-trust-word">uses</span>
+            <span class="auth-trust-word">{{ @login.uses }}</span>
             <img class="sorkos-auth-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
         </span>
     </h1>
 
-    <p class="auth-copy">{{ @login_prompt }}</p>
+    <p class="auth-copy">{{ @login.prompt }}</p>
 
     <div class="actions">
         <repeat group="{{ @providers }}" value="{{ @provider }}">
@@ -35,6 +35,6 @@
     </div>
 
     <p class="notice auth-notice">{{ @login.provider_pending }}</p>
-    <p class="privacy-link">Check our <a href="/privacy/">data privacy</a> section for more information.</p>
+    <p class="privacy-link">{{ @login.privacy_hint }}</p>
 </section>
 <include href="_layout_end.html" />

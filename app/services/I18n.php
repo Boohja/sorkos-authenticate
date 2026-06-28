@@ -57,6 +57,10 @@ class I18n
             $text = str_replace('{' . $name . '}', (string) $value, $text);
         }
 
+        foreach (array_values($placeholders) as $index => $value) {
+            $text = str_replace('{' . $index . '}', (string) $value, $text);
+        }
+
         return $text;
     }
 

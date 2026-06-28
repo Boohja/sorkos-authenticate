@@ -1,6 +1,6 @@
 <include href="_layout_start.html" />
 <section class="panel auth-panel">
-    <h1>{{ @consent_title }}</h1>
+    <h1>{{ @consent.title,@client.display_name | format }}</h1>
     <p>{{ @consent.pending }}</p>
     <dl>
         <dt>Client</dt><dd>{{ @client.display_name }}</dd>

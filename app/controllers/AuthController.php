@@ -66,11 +66,10 @@ class AuthController
             'layout_variant' => 'split',
             'hide_split_header' => true,
             'client_icon' => '',
-            'i18n' => $i18n,
             'client' => $client,
             'client_icon' => $this->clientBranding($client)['icon'],
             'email_value' => '',
-            'email_error' => '',
+            'email_error_key' => '',
             'back_url' => $this->authorizeBackUrl($f3),
         ]);
     }
@@ -94,11 +93,10 @@ class AuthController
                 'active_nav' => '',
                 'layout_variant' => 'split',
                 'hide_split_header' => true,
-                'i18n' => $i18n,
                 'client' => $client,
                 'client_icon' => $this->clientBranding($client)['icon'],
                 'email_value' => $email,
-                'email_error' => $i18n->t('email.invalid'),
+                'email_error_key' => 'email.invalid',
                 'back_url' => $this->authorizeBackUrl($f3),
             ]);
             return;
@@ -113,11 +111,10 @@ class AuthController
                 'active_nav' => '',
                 'layout_variant' => 'split',
                 'hide_split_header' => true,
-                'i18n' => $i18n,
                 'client' => $client,
                 'client_icon' => $this->clientBranding($client)['icon'],
                 'email_value' => $email,
-                'email_error' => $i18n->t((string) $requestStatus['error']),
+                'email_error_key' => (string) $requestStatus['error'],
                 'back_url' => $this->authorizeBackUrl($f3),
             ]);
             return;
@@ -159,11 +156,10 @@ class AuthController
             'active_nav' => '',
             'layout_variant' => 'split',
             'hide_split_header' => true,
-            'i18n' => $i18n,
             'client' => $client,
             'client_icon' => $this->clientBranding($client)['icon'],
-            'code_sent_message' => $i18n->t('email.code_sent', ['email' => (string) $challenge['email']]),
-            'code_error' => '',
+            'code_sent_email' => (string) $challenge['email'],
+            'code_error_key' => '',
             'prefill_code' => $this->sanitizeCode((string) ($f3->get('GET.code') ?? '')),
             'mail_sent' => (bool) ($_SESSION['email_login_mail_sent'] ?? true),
             'back_url' => '/oauth/email',
@@ -197,11 +193,10 @@ class AuthController
                 'active_nav' => '',
                 'layout_variant' => 'split',
                 'hide_split_header' => true,
-                'i18n' => $i18n,
                 'client' => $client,
                 'client_icon' => $this->clientBranding($client)['icon'],
-                'code_sent_message' => $i18n->t('email.code_sent', ['email' => (string) $challenge['email']]),
-                'code_error' => $i18n->t('email.code_invalid'),
+                'code_sent_email' => (string) $challenge['email'],
+                'code_error_key' => 'email.code_invalid',
                 'prefill_code' => '',
                 'mail_sent' => true,
                 'back_url' => '/oauth/email',
@@ -228,11 +223,7 @@ class AuthController
             'active_nav' => '',
             'layout_variant' => 'split',
             'hide_split_header' => true,
-            'i18n' => $i18n,
             'client' => $client,
-            'login_explanation' => $i18n->t('login.explanation', ['client' => $client['display_name']]),
-            'login_prompt' => $i18n->t('login.prompt'),
-            'privacy_hint' => $i18n->t('login.privacy_hint'),
             'providers' => $this->providerChoices($i18n, ClientService::csvToList((string) $client['enabled_providers'])),
             'client_logo' => $branding['logo'],
             'client_icon' => $branding['icon'],
@@ -242,16 +233,14 @@ class AuthController
     private function renderConsentPending(Base $f3, I18n $i18n, array $client, array $user): void
     {
         $this->render($f3, 'consent_pending.html', [
-            'title' => $i18n->t('consent.title', ['client' => $client['display_name']]),
+            'title' => $i18n->t('consent.title', [$client['display_name']]),
             'html_lang' => $i18n->language(),
             'active_nav' => '',
             'layout_variant' => 'split',
             'hide_split_header' => true,
-            'i18n' => $i18n,
             'client' => $client,
             'client_icon' => $this->clientBranding($client)['icon'],
             'user' => $user,
-            'consent_title' => $i18n->t('consent.title', ['client' => $client['display_name']]),
         ]);
     }
 
@@ -275,9 +264,7 @@ class AuthController
             'layout_variant' => 'split',
             'hide_split_header' => true,
             'client_icon' => '',
-            'i18n' => $i18n,
             'error_key' => $error,
-            'error_message' => $i18n->t($error),
         ]);
     }
 

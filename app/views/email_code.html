@@ -1,7 +1,7 @@
 <include href="_layout_start.html" />
 <section class="panel auth-panel">
     <h1>{{ @email.code_title }}</h1>
-    <p>{{ @code_sent_message }}</p>
+    <p>{{ @email.code_sent,@code_sent_email | format }}</p>
 
     <check if="{{ !@mail_sent }}">
         <p class="notice error">{{ @email.mail_failed }}</p>
@@ -18,8 +18,8 @@
             <input id="code-6" name="email_code_digit[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 5, 1) }}" aria-label="{{ @email.code_digit }} 6" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
         </div>
         <input type="hidden" name="email_code_full" value="{{ @prefill_code }}" autocomplete="off" data-code-full>
-        <check if="{{ @code_error }}">
-            <p class="notice error">{{ @code_error }}</p>
+        <check if="{{ @code_error_key }}">
+            <p class="notice error">{{ Base::instance()->get(@code_error_key) }}</p>
         </check>
         <button class="button primary" type="submit">{{ @email.code_submit }}</button>
         <div class="form-actions">
