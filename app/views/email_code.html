@@ -7,21 +7,24 @@
         <p class="notice error">{{ @email.mail_failed }}</p>
     </check>
 
-    <form class="form-stack auth-form" method="post" action="/oauth/email/verify" data-code-form>
+    <form class="form-stack auth-form" method="post" action="/oauth/email/verify" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other" data-code-form>
         <label for="code-1">{{ @email.code_label }}</label>
         <div class="code-inputs" data-code-inputs>
-            <input id="code-1" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="1" value="{{ substr(@prefill_code, 0, 1) }}" aria-label="{{ @email.code_digit }} 1">
-            <input id="code-2" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 1, 1) }}" aria-label="{{ @email.code_digit }} 2">
-            <input id="code-3" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 2, 1) }}" aria-label="{{ @email.code_digit }} 3">
-            <input id="code-4" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 3, 1) }}" aria-label="{{ @email.code_digit }} 4">
-            <input id="code-5" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 4, 1) }}" aria-label="{{ @email.code_digit }} 5">
-            <input id="code-6" name="code[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 5, 1) }}" aria-label="{{ @email.code_digit }} 6">
+            <input id="code-1" name="email_code_digit[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 0, 1) }}" aria-label="{{ @email.code_digit }} 1" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+            <input id="code-2" name="email_code_digit[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 1, 1) }}" aria-label="{{ @email.code_digit }} 2" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+            <input id="code-3" name="email_code_digit[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 2, 1) }}" aria-label="{{ @email.code_digit }} 3" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+            <input id="code-4" name="email_code_digit[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 3, 1) }}" aria-label="{{ @email.code_digit }} 4" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+            <input id="code-5" name="email_code_digit[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 4, 1) }}" aria-label="{{ @email.code_digit }} 5" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+            <input id="code-6" name="email_code_digit[]" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" value="{{ substr(@prefill_code, 5, 1) }}" aria-label="{{ @email.code_digit }} 6" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
         </div>
-        <input type="hidden" name="code_full" value="{{ @prefill_code }}" data-code-full>
+        <input type="hidden" name="email_code_full" value="{{ @prefill_code }}" autocomplete="off" data-code-full>
         <check if="{{ @code_error }}">
             <p class="notice error">{{ @code_error }}</p>
         </check>
         <button class="button primary" type="submit">{{ @email.code_submit }}</button>
+        <div class="form-actions">
+            <a class="button" href="{{ @back_url }}">{{ @action.back }}</a>
+        </div>
     </form>
 </section>
 
@@ -45,6 +48,23 @@
             if (/^\d{6}$/.test(full.value)) {
                 form.submit();
             }
+        }
+
+        function fillFrom(index, text) {
+            var digits = text.replace(/\D/g, '').slice(0, 6);
+
+            if (!digits) {
+                return;
+            }
+
+            digits.split('').forEach(function (digit, offset) {
+                if (fields[index + offset]) {
+                    fields[index + offset].value = digit;
+                }
+            });
+
+            fields[Math.min(index + digits.length, fields.length - 1)].focus();
+            sync();
         }
 
         fields.forEach(function (field, index) {
@@ -71,6 +91,12 @@
                 if (event.key === 'Backspace' && !field.value && fields[index - 1]) {
                     fields[index - 1].focus();
                 }
+            });
+
+            field.addEventListener('paste', function (event) {
+                var clipboard = event.clipboardData || window.clipboardData;
+                event.preventDefault();
+                fillFrom(index, clipboard ? clipboard.getData('text') : '');
             });
         });
 

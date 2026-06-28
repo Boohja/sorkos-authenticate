@@ -11,6 +11,9 @@ class EmailAuthService
     private const PROVIDER = 'email';
     private const CODE_TTL_MINUTES = 10;
     private const MAX_ATTEMPTS = 5;
+    private const RESEND_COOLDOWN_SECONDS = 60;
+    private const MAX_EMAIL_CLIENT_CODES_PER_HOUR = 5;
+    private const MAX_CLIENT_CODES_PER_HOUR = 30;
 
     private Db $db;
     private array $config;
@@ -33,6 +36,8 @@ class EmailAuthService
         $now = date('Y-m-d H:i:s');
         $expires = date('Y-m-d H:i:s', time() + self::CODE_TTL_MINUTES * 60);
 
+        $this->expireActiveCodesForEmailClient($email, $clientId, $now);
+
         $stmt = $this->db->pdo()->prepare(
             'INSERT INTO auth_email_login_codes
                 (selector_hash, code_hash, email, client_id, attempts, created_at, expires_at)
@@ -53,6 +58,76 @@ class EmailAuthService
             'selector' => $selector,
             'code' => $code,
             'expires_at' => $expires,
+        ];
+    }
+
+    public function codeRequestStatus(string $email, int $clientId): array
+    {
+        $recentCutoff = date('Y-m-d H:i:s', time() - self::RESEND_COOLDOWN_SECONDS);
+        $hourCutoff = date('Y-m-d H:i:s', time() - 3600);
+
+        $recentStmt = $this->db->pdo()->prepare(
+            'SELECT created_at FROM auth_email_login_codes
+             WHERE email = :email
+             AND client_id = :client_id
+             AND created_at > :recent_cutoff
+             ORDER BY created_at DESC
+             LIMIT 1'
+        );
+        $recentStmt->execute([
+            'email' => $email,
+            'client_id' => $clientId,
+            'recent_cutoff' => $recentCutoff,
+        ]);
+        $recentCreatedAt = $recentStmt->fetchColumn();
+
+        if (is_string($recentCreatedAt) && $recentCreatedAt !== '') {
+            $retryAfter = self::RESEND_COOLDOWN_SECONDS - max(0, time() - strtotime($recentCreatedAt));
+
+            return [
+                'ok' => false,
+                'error' => 'email.rate_limited_recent',
+                'retry_after' => max(1, $retryAfter),
+            ];
+        }
+
+        $emailCount = $this->countCodesSince(
+            'email = :email AND client_id = :client_id',
+            [
+                'email' => $email,
+                'client_id' => $clientId,
+                'created_after' => $hourCutoff,
+            ]
+        );
+
+        if ($emailCount >= self::MAX_EMAIL_CLIENT_CODES_PER_HOUR) {
+            return [
+                'ok' => false,
+                'error' => 'email.rate_limited_email',
+                'retry_after' => 3600,
+            ];
+        }
+
+        $clientCount = $this->countCodesSince(
+            'client_id = :client_id',
+            [
+                'client_id' => $clientId,
+                'created_after' => $hourCutoff,
+            ]
+        );
+
+        if ($clientCount >= self::MAX_CLIENT_CODES_PER_HOUR) {
+            return [
+                'ok' => false,
+                'error' => 'email.rate_limited_client',
+                'retry_after' => 3600,
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'error' => '',
+            'retry_after' => 0,
         ];
     }
 
@@ -238,6 +313,36 @@ class EmailAuthService
         } while ((int) $stmt->fetchColumn() > 0);
 
         return $publicId;
+    }
+
+    private function expireActiveCodesForEmailClient(string $email, int $clientId, string $now): void
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'UPDATE auth_email_login_codes
+             SET consumed_at = :consumed_at
+             WHERE email = :email
+             AND client_id = :client_id
+             AND consumed_at IS NULL
+             AND expires_at > :expires_after'
+        );
+        $stmt->execute([
+            'consumed_at' => $now,
+            'expires_after' => $now,
+            'email' => $email,
+            'client_id' => $clientId,
+        ]);
+    }
+
+    private function countCodesSince(string $where, array $params): int
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT COUNT(*) FROM auth_email_login_codes
+             WHERE ' . $where . '
+             AND created_at > :created_after'
+        );
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn();
     }
 
     private function hashCode(string $code): string

@@ -10,6 +10,9 @@
             <p class="notice error">{{ @email_error }}</p>
         </check>
         <button class="button primary" type="submit">{{ @email.submit }}</button>
+        <div class="form-actions">
+            <a class="button" href="{{ @back_url }}">{{ @action.back }}</a>
+        </div>
     </form>
 </section>
 <include href="_layout_end.html" />

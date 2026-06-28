@@ -602,6 +602,11 @@ dd {
   color: #fff;
 }
 
+.form-actions {
+  display: grid;
+  gap: 10px;
+}
+
 .button:not(:disabled):hover,
 .button:not(:disabled):focus-visible {
   border-color: var(--accent);

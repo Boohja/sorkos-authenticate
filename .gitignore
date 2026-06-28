@@ -1,5 +1,6 @@
 docs/
 app/config/local.php
 tmp/
+vendor/
 setup.lock
 setup.unlock

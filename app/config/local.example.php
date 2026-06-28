@@ -17,4 +17,10 @@ return [
         'username' => 'database_user',
         'password' => 'database_password',
     ],
+    'tasks' => [
+        'housekeeping_secret' => 'replace-with-a-second-long-random-secret',
+        'email_code_retention_hours' => 24,
+        'authorization_code_retention_hours' => 24,
+        'session_retention_days' => 7,
+    ],
 ];

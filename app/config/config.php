@@ -34,6 +34,12 @@ $config = [
         'password' => '',
         'charset' => 'utf8mb4',
     ],
+    'tasks' => [
+        'housekeeping_secret' => '',
+        'email_code_retention_hours' => 24,
+        'authorization_code_retention_hours' => 24,
+        'session_retention_days' => 7,
+    ],
 ];
 
 $localConfigPath = __DIR__ . '/local.php';

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Services\AuthorizationCodeService;
 use App\Services\ClientService;
 use App\Services\EmailAuthService;
 use App\Services\I18n;
@@ -26,7 +27,7 @@ class AuthController
         $client = $validation['client'];
         $i18n = I18n::fromRequest($f3, $client);
         $session = new SessionService($f3->get('DB'));
-        $session->storePendingAuthorizeRequest([
+        $pendingAuthorize = [
             'client_id' => $client['client_id'],
             'client_pk' => $client['id'],
             'redirect_uri' => (string) $f3->get('GET.redirect_uri'),
@@ -35,12 +36,13 @@ class AuthController
             'state' => (string) $f3->get('GET.state'),
             'lang' => $i18n->language(),
             'created_at' => time(),
-        ]);
+        ];
+        $session->storePendingAuthorizeRequest($pendingAuthorize);
 
         $user = $session->currentUser();
 
         if ($user !== null) {
-            $this->renderConsentPending($f3, $i18n, $client, $user);
+            $this->redirectToClient($f3, $session, $pendingAuthorize, $user);
             return;
         }
 
@@ -69,6 +71,7 @@ class AuthController
             'client_icon' => $this->clientBranding($client)['icon'],
             'email_value' => '',
             'email_error' => '',
+            'back_url' => $this->authorizeBackUrl($f3),
         ]);
     }
 
@@ -96,6 +99,26 @@ class AuthController
                 'client_icon' => $this->clientBranding($client)['icon'],
                 'email_value' => $email,
                 'email_error' => $i18n->t('email.invalid'),
+                'back_url' => $this->authorizeBackUrl($f3),
+            ]);
+            return;
+        }
+
+        $requestStatus = $emailService->codeRequestStatus($email, (int) $pending['client_pk']);
+
+        if (!$requestStatus['ok']) {
+            $this->render($f3, 'email_login.html', [
+                'title' => $client['display_name'] . ' Login with Sorkos',
+                'html_lang' => $i18n->language(),
+                'active_nav' => '',
+                'layout_variant' => 'split',
+                'hide_split_header' => true,
+                'i18n' => $i18n,
+                'client' => $client,
+                'client_icon' => $this->clientBranding($client)['icon'],
+                'email_value' => $email,
+                'email_error' => $i18n->t((string) $requestStatus['error']),
+                'back_url' => $this->authorizeBackUrl($f3),
             ]);
             return;
         }
@@ -109,22 +132,9 @@ class AuthController
         ];
 
         $mailSent = $emailService->sendCode($email, $challenge['code'], $this->absoluteUrl($f3, '/oauth/email/verify'), $i18n);
+        $_SESSION['email_login_mail_sent'] = $mailSent;
 
-        $this->render($f3, 'email_code.html', [
-            'title' => $client['display_name'] . ' Login with Sorkos',
-            'html_lang' => $i18n->language(),
-            'active_nav' => '',
-            'layout_variant' => 'split',
-            'hide_split_header' => true,
-            'i18n' => $i18n,
-            'client' => $client,
-            'client_icon' => $this->clientBranding($client)['icon'],
-            'email' => $email,
-            'code_sent_message' => $i18n->t('email.code_sent', ['email' => $email]),
-            'code_error' => '',
-            'prefill_code' => $this->sanitizeCode((string) ($f3->get('GET.code') ?? '')),
-            'mail_sent' => $mailSent,
-        ]);
+        $f3->reroute('/oauth/email/verify');
     }
 
     public function emailCodeForm(Base $f3): void
@@ -152,11 +162,11 @@ class AuthController
             'i18n' => $i18n,
             'client' => $client,
             'client_icon' => $this->clientBranding($client)['icon'],
-            'email' => (string) $challenge['email'],
             'code_sent_message' => $i18n->t('email.code_sent', ['email' => (string) $challenge['email']]),
             'code_error' => '',
             'prefill_code' => $this->sanitizeCode((string) ($f3->get('GET.code') ?? '')),
-            'mail_sent' => true,
+            'mail_sent' => (bool) ($_SESSION['email_login_mail_sent'] ?? true),
+            'back_url' => '/oauth/email',
         ]);
     }
 
@@ -168,7 +178,7 @@ class AuthController
             return;
         }
 
-        [$i18n, $client] = $context;
+        [$i18n, $client, $pending] = $context;
         $challenge = $_SESSION['email_login_challenge'] ?? null;
 
         if (!is_array($challenge)) {
@@ -190,20 +200,22 @@ class AuthController
                 'i18n' => $i18n,
                 'client' => $client,
                 'client_icon' => $this->clientBranding($client)['icon'],
-                'email' => (string) $challenge['email'],
                 'code_sent_message' => $i18n->t('email.code_sent', ['email' => (string) $challenge['email']]),
                 'code_error' => $i18n->t('email.code_invalid'),
                 'prefill_code' => '',
                 'mail_sent' => true,
+                'back_url' => '/oauth/email',
             ]);
             return;
         }
 
         unset($_SESSION['email_login_challenge']);
+        unset($_SESSION['email_login_mail_sent']);
 
         $user = $emailService->createOrUpdateUser((string) $verified['email'], $i18n->language());
-        (new SessionService($f3->get('DB')))->createSession($user);
-        $f3->reroute((new SessionService($f3->get('DB')))->pendingAuthorizeUrl());
+        $session = new SessionService($f3->get('DB'));
+        $session->createSession($user);
+        $this->redirectToClient($f3, $session, $pending, $user);
     }
 
     private function renderLogin(Base $f3, I18n $i18n, array $client): void
@@ -243,6 +255,15 @@ class AuthController
         ]);
     }
 
+    private function redirectToClient(Base $f3, SessionService $session, array $pending, array $user): void
+    {
+        $authorizationCodes = new AuthorizationCodeService($f3->get('DB'));
+        $code = $authorizationCodes->issue($pending, $user);
+        $redirectUrl = $authorizationCodes->callbackUrl($pending, $code);
+        $session->clearPendingAuthorizeRequest();
+        $this->externalRedirect($redirectUrl);
+    }
+
     private function renderError(Base $f3, I18n $i18n, string $error): void
     {
         http_response_code(400);
@@ -253,6 +274,7 @@ class AuthController
             'active_nav' => '',
             'layout_variant' => 'split',
             'hide_split_header' => true,
+            'client_icon' => '',
             'i18n' => $i18n,
             'error_key' => $error,
             'error_message' => $i18n->t($error),
@@ -285,6 +307,17 @@ class AuthController
         }, $providers);
     }
 
+    private function authorizeBackUrl(Base $f3): string
+    {
+        return (new SessionService($f3->get('DB')))->pendingAuthorizeUrl();
+    }
+
+    private function externalRedirect(string $url): void
+    {
+        header('Location: ' . $url, true, 302);
+        exit;
+    }
+
     private function providerIcon(string $provider): string
     {
         if ($provider === 'google') {
@@ -309,7 +342,10 @@ class AuthController
         $i18n = I18n::fromRequest($f3);
 
         if ($pending === null) {
-            $this->renderError($f3, $i18n, 'error.missing_authorize_request');
+            $error = $session->pendingAuthorizeExpired()
+                ? 'error.expired_authorize_request'
+                : 'error.missing_authorize_request';
+            $this->renderError($f3, $i18n, $error);
             return null;
         }
 
@@ -334,11 +370,11 @@ class AuthController
 
     private function postedCode(Base $f3): string
     {
-        $parts = (array) ($f3->get('POST.code') ?? []);
+        $parts = (array) ($f3->get('POST.email_code_digit') ?? $f3->get('POST.code') ?? []);
         $code = implode('', array_map(static fn ($part): string => preg_replace('/\D+/', '', (string) $part), $parts));
 
         if ($code === '') {
-            $code = preg_replace('/\D+/', '', (string) $f3->get('POST.code_full'));
+            $code = preg_replace('/\D+/', '', (string) ($f3->get('POST.email_code_full') ?? $f3->get('POST.code_full')));
         }
 
         return substr($code, 0, 6);
@@ -351,10 +387,27 @@ class AuthController
 
     private function absoluteUrl(Base $f3, string $path): string
     {
-        $config = $f3->get('APP_CONFIG');
-        $baseUrl = rtrim((string) ($config['app']['base_url'] ?? ''), '/');
+        $headers = $f3->get('HEADERS') ?: [];
+        $server = $f3->get('SERVER') ?: [];
+        $scheme = strtolower((string) ($headers['X-Forwarded-Proto'] ?? ''));
 
-        return $baseUrl . $path;
+        if ($scheme === '') {
+            $scheme = !empty($server['HTTPS']) && strtolower((string) $server['HTTPS']) !== 'off'
+                ? 'https'
+                : (string) ($f3->get('SCHEME') ?: 'http');
+        }
+
+        $host = (string) ($headers['X-Forwarded-Host'] ?? $headers['Host'] ?? $f3->get('HOST'));
+        $host = trim(explode(',', $host)[0]);
+
+        if ($host === '') {
+            $config = $f3->get('APP_CONFIG');
+            $baseUrl = rtrim((string) ($config['app']['base_url'] ?? ''), '/');
+
+            return $baseUrl . $path;
+        }
+
+        return rtrim($scheme . '://' . $host, '/') . $path;
     }
 
     private function clientBranding(array $client): array

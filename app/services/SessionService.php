@@ -11,6 +11,7 @@ class SessionService
 {
     private const AUTH_COOKIE = 'comasu_auth';
     private const SESSION_TTL_DAYS = 30;
+    private const PENDING_AUTHORIZE_TTL_SECONDS = 900;
 
     private Db $db;
 
@@ -21,6 +22,7 @@ class SessionService
 
     public function storePendingAuthorizeRequest(array $request): void
     {
+        unset($_SESSION['pending_authorize_expired']);
         $_SESSION['pending_authorize'] = $request;
     }
 
@@ -28,7 +30,34 @@ class SessionService
     {
         $request = $_SESSION['pending_authorize'] ?? null;
 
-        return is_array($request) ? $request : null;
+        if (!is_array($request)) {
+            return null;
+        }
+
+        $createdAt = (int) ($request['created_at'] ?? 0);
+
+        if ($createdAt <= 0 || $createdAt + self::PENDING_AUTHORIZE_TTL_SECONDS < time()) {
+            $_SESSION['pending_authorize_expired'] = true;
+            $this->clearPendingAuthorizeRequest();
+            return null;
+        }
+
+        return $request;
+    }
+
+    public function pendingAuthorizeExpired(): bool
+    {
+        $expired = !empty($_SESSION['pending_authorize_expired']);
+        unset($_SESSION['pending_authorize_expired']);
+
+        return $expired;
+    }
+
+    public function clearPendingAuthorizeRequest(): void
+    {
+        unset($_SESSION['pending_authorize']);
+        unset($_SESSION['email_login_challenge']);
+        unset($_SESSION['email_login_mail_sent']);
     }
 
     public function pendingAuthorizeUrl(): string

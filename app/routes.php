@@ -32,6 +32,10 @@ $f3->route('GET /docs/workflow', function (Base $f3): void {
     (new App\Controllers\DocsController())->workflow($f3);
 });
 
+$f3->route(['GET /internal/cleanup', 'POST /internal/cleanup'], function (Base $f3): void {
+    (new App\Controllers\TasksController())->housekeeping($f3);
+});
+
 $f3->route('GET /authorize', function (Base $f3): void {
     (new App\Controllers\AuthController())->authorize($f3);
 });
