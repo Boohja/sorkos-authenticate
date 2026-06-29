@@ -3,7 +3,7 @@
   "info": {
     "title": "Sorkos Login API",
     "version": "1.0.0",
-    "description": "Endpoint contract for client projects integrating with Sorkos Login. This system is for registered Sorkos projects only and is not intended for public self-service use.\n\nImplementation status: /authorize validation, the provider-selection screen, and first-party E-Mail login exist. External OAuth providers, authorization-code issuing, /token, and /logout are planned but not implemented yet."
+    "description": "Endpoint contract for client projects integrating with Sorkos Login. This system is for registered Sorkos projects only and is not intended for public self-service use.\n\nImplementation status: /authorize validation, the provider-selection screen, first-party E-Mail login, authorization-code issuing, /token, and /logout exist. External OAuth providers are planned but not implemented yet."
   },
   "servers": [
     {
@@ -103,9 +103,11 @@
             "name": "prompt",
             "in": "query",
             "required": false,
-            "description": "Reserved for later consent/account-selection behavior.",
+            "description": "Controls behavior when a central Sorkos Login session already exists. By default, Sorkos asks the user to continue as the current account. Use prompt=none to allow silent SSO and immediately redirect back with an authorization code.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": ["none"],
+              "example": "none"
             }
           }
         ],
@@ -410,7 +412,7 @@
       "post": {
         "tags": ["Token"],
         "summary": "Exchange authorization code",
-        "description": "Exchanges a short-lived authorization code for normalized user information. This request is made server-side by the client project. Planned, not implemented yet.",
+        "description": "Exchanges a short-lived authorization code for normalized user information. This request is made server-side by the client project. The client secret authenticates the client; the authorization code identifies the user session that completed /authorize.",
         "requestBody": {
           "required": true,
           "content": {
@@ -454,10 +456,33 @@
       "get": {
         "tags": ["Session"],
         "summary": "Destroy central session",
-        "description": "Destroys the central Sorkos Login session. Client projects still handle their own local logout separately. Planned, not implemented yet.",
+        "description": "Destroys the central Sorkos Login session. Client projects still handle their own local logout separately. If client_id and redirect_uri are supplied, redirect_uri must exactly match a registered URI for that client.",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": false,
+            "description": "Client requesting a post-logout browser redirect.",
+            "schema": {
+              "type": "string",
+              "example": "example-id"
+            }
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": false,
+            "description": "Post-logout return target. Must exactly match a registered URI for client_id.",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "example": "https://client.example/auth/callback"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Logout confirmation, or redirect if a return target is added later.",
+            "description": "Logout confirmation page when no valid return URI is supplied.",
             "content": {
               "text/html": {
                 "schema": {
@@ -465,6 +490,9 @@
                 }
               }
             }
+          },
+          "302": {
+            "description": "Redirect to the validated post-logout return URI."
           }
         }
       }

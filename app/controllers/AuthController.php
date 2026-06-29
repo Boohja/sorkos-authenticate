@@ -34,6 +34,7 @@ class AuthController
             'response_type' => (string) $f3->get('GET.response_type'),
             'scope' => (string) ($f3->get('GET.scope') ?? ''),
             'state' => (string) $f3->get('GET.state'),
+            'prompt' => strtolower(trim((string) ($f3->get('GET.prompt') ?? ''))),
             'lang' => $i18n->language(),
             'created_at' => time(),
         ];
@@ -42,10 +43,48 @@ class AuthController
         $user = $session->currentUser();
 
         if ($user !== null) {
-            $this->redirectToClient($f3, $session, $pendingAuthorize, $user);
+            if ($pendingAuthorize['prompt'] === 'none') {
+                $this->redirectToClient($f3, $session, $pendingAuthorize, $user);
+                return;
+            }
+
+            $this->renderExistingSessionConfirmation($f3, $i18n, $client, $user);
             return;
         }
 
+        $this->renderLogin($f3, $i18n, $client);
+    }
+
+    public function continueExistingSession(Base $f3): void
+    {
+        $context = $this->pendingAuthorizeContext($f3);
+
+        if ($context === null) {
+            return;
+        }
+
+        [, , $pending] = $context;
+        $session = new SessionService($f3->get('DB'));
+        $user = $session->currentUser();
+
+        if ($user === null) {
+            $f3->reroute($session->pendingAuthorizeUrl());
+            return;
+        }
+
+        $this->redirectToClient($f3, $session, $pending, $user);
+    }
+
+    public function useAnotherAccount(Base $f3): void
+    {
+        $context = $this->pendingAuthorizeContext($f3);
+
+        if ($context === null) {
+            return;
+        }
+
+        [$i18n, $client] = $context;
+        (new SessionService($f3->get('DB')))->revokeCurrentSession();
         $this->renderLogin($f3, $i18n, $client);
     }
 
@@ -120,6 +159,9 @@ class AuthController
             return;
         }
 
+        $pending['created_at'] = time();
+        (new SessionService($f3->get('DB')))->storePendingAuthorizeRequest($pending);
+
         $challenge = $emailService->createCode($email, (int) $pending['client_pk']);
         $_SESSION['email_login_challenge'] = [
             'id' => $challenge['id'],
@@ -128,7 +170,13 @@ class AuthController
             'client_pk' => (int) $pending['client_pk'],
         ];
 
-        $mailSent = $emailService->sendCode($email, $challenge['code'], $this->absoluteUrl($f3, '/oauth/email/verify'), $i18n);
+        $verifyUrl = $this->emailVerifyUrl($f3, $pending, [
+            'id' => $challenge['id'],
+            'selector' => $challenge['selector'],
+            'email' => $email,
+            'client_pk' => (int) $pending['client_pk'],
+        ]);
+        $mailSent = $emailService->sendCode($email, $challenge['code'], $verifyUrl, $i18n);
         $_SESSION['email_login_mail_sent'] = $mailSent;
 
         $f3->reroute('/oauth/email/verify');
@@ -136,6 +184,7 @@ class AuthController
 
     public function emailCodeForm(Base $f3): void
     {
+        $this->restoreEmailFlowFromRequest($f3);
         $context = $this->authorizeContext($f3);
 
         if ($context === null) {
@@ -162,12 +211,14 @@ class AuthController
             'code_error_key' => '',
             'prefill_code' => $this->sanitizeCode((string) ($f3->get('GET.code') ?? '')),
             'mail_sent' => (bool) ($_SESSION['email_login_mail_sent'] ?? true),
+            'email_flow' => $this->emailFlowParams($f3),
             'back_url' => '/oauth/email',
         ]);
     }
 
     public function verifyEmailCode(Base $f3): void
     {
+        $this->restoreEmailFlowFromRequest($f3);
         $context = $this->authorizeContext($f3);
 
         if ($context === null) {
@@ -199,6 +250,7 @@ class AuthController
                 'code_error_key' => 'email.code_invalid',
                 'prefill_code' => '',
                 'mail_sent' => true,
+                'email_flow' => $this->emailFlowParams($f3),
                 'back_url' => '/oauth/email',
             ]);
             return;
@@ -244,6 +296,24 @@ class AuthController
         ]);
     }
 
+    private function renderExistingSessionConfirmation(Base $f3, I18n $i18n, array $client, array $user): void
+    {
+        $userLabel = (string) ($user['display_name'] ?: $user['email'] ?: $user['public_id']);
+
+        $this->render($f3, 'existing_session.html', [
+            'title' => $i18n->t('existing_session.title', [$client['display_name']]),
+            'html_lang' => $i18n->language(),
+            'active_nav' => '',
+            'layout_variant' => 'split',
+            'hide_split_header' => true,
+            'client' => $client,
+            'client_icon' => $this->clientBranding($client)['icon'],
+            'client_logo' => $this->clientBranding($client)['logo'],
+            'user' => $user,
+            'user_label' => $userLabel,
+        ]);
+    }
+
     private function redirectToClient(Base $f3, SessionService $session, array $pending, array $user): void
     {
         $authorizationCodes = new AuthorizationCodeService($f3->get('DB'));
@@ -270,11 +340,37 @@ class AuthController
 
     private function render(Base $f3, string $view, array $data): void
     {
+        $data = $this->withClientBackLink($f3, $data);
+
         foreach ($data as $key => $value) {
             $f3->set($key, $value);
         }
 
         echo \Template::instance()->render($view);
+    }
+
+    private function withClientBackLink(Base $f3, array $data): array
+    {
+        $data['client_back_url'] = (string) ($data['client_back_url'] ?? '');
+        $data['client_back_label'] = (string) ($data['client_back_label'] ?? '');
+
+        if (!empty($data['client_back_url']) || !is_array($data['client'] ?? null)) {
+            return $data;
+        }
+
+        $pending = (new SessionService($f3->get('DB')))->pendingAuthorizeRequest();
+
+        if ($pending === null || empty($pending['redirect_uri'])) {
+            return $data;
+        }
+
+        $data['client_back_label'] = (string) ($data['client']['display_name'] ?? $data['client']['name'] ?? $data['client']['client_id']);
+        $data['client_back_url'] = $this->appendParams((string) $pending['redirect_uri'], [
+            'error' => 'access_denied',
+            'state' => (string) ($pending['state'] ?? ''),
+        ]);
+
+        return $data;
     }
 
     private function providerChoices(I18n $i18n, array $providers): array
@@ -305,6 +401,16 @@ class AuthController
         exit;
     }
 
+    private function appendParams(string $url, array $params): string
+    {
+        $separator = str_contains($url, '?') ? '&' : '?';
+
+        return $url . $separator . http_build_query(array_filter(
+            $params,
+            static fn ($value): bool => (string) $value !== ''
+        ));
+    }
+
     private function providerIcon(string $provider): string
     {
         if ($provider === 'google') {
@@ -323,6 +429,26 @@ class AuthController
     }
 
     private function authorizeContext(Base $f3): ?array
+    {
+        $context = $this->pendingAuthorizeContext($f3);
+
+        if ($context === null) {
+            return null;
+        }
+
+        [$i18n, $client, $pending] = $context;
+        $providers = ClientService::csvToList((string) $client['enabled_providers']);
+        $providers = array_map('strtolower', $providers);
+
+        if (!in_array('email', $providers, true)) {
+            $this->renderError($f3, $i18n, 'error.provider_unavailable');
+            return null;
+        }
+
+        return [$i18n, $client, $pending];
+    }
+
+    private function pendingAuthorizeContext(Base $f3): ?array
     {
         $session = new SessionService($f3->get('DB'));
         $pending = $session->pendingAuthorizeRequest();
@@ -343,16 +469,7 @@ class AuthController
             return null;
         }
 
-        $i18n = I18n::fromRequest($f3, $client);
-        $providers = ClientService::csvToList((string) $client['enabled_providers']);
-        $providers = array_map('strtolower', $providers);
-
-        if (!in_array('email', $providers, true)) {
-            $this->renderError($f3, $i18n, 'error.provider_unavailable');
-            return null;
-        }
-
-        return [$i18n, $client, $pending];
+        return [I18n::fromRequest($f3, $client), $client, $pending];
     }
 
     private function postedCode(Base $f3): string
@@ -395,6 +512,124 @@ class AuthController
         }
 
         return rtrim($scheme . '://' . $host, '/') . $path;
+    }
+
+    private function emailVerifyUrl(Base $f3, array $pending, array $challenge): string
+    {
+        $payload = $this->base64UrlEncode(json_encode([
+            'pending' => $pending,
+            'challenge' => $challenge,
+        ], JSON_UNESCAPED_SLASHES) ?: '{}');
+        $query = http_build_query([
+            'flow' => $payload,
+            'sig' => $this->emailFlowSignature($payload),
+        ]);
+
+        return $this->absoluteUrl($f3, '/oauth/email/verify?' . $query);
+    }
+
+    private function restoreEmailFlowFromRequest(Base $f3): void
+    {
+        if (is_array($_SESSION['pending_authorize'] ?? null) && is_array($_SESSION['email_login_challenge'] ?? null)) {
+            return;
+        }
+
+        $payload = (string) ($f3->get('GET.flow') ?? $f3->get('POST.flow') ?? '');
+        $signature = (string) ($f3->get('GET.sig') ?? $f3->get('POST.sig') ?? '');
+
+        if ($payload === '' || $signature === '' || !hash_equals($this->emailFlowSignature($payload), $signature)) {
+            return;
+        }
+
+        $decoded = json_decode($this->base64UrlDecode($payload), true);
+
+        if (!is_array($decoded) || !is_array($decoded['pending'] ?? null) || !is_array($decoded['challenge'] ?? null)) {
+            return;
+        }
+
+        $pending = $decoded['pending'];
+        $challenge = $decoded['challenge'];
+
+        if (!$this->validRestoredEmailFlow($pending, $challenge)) {
+            return;
+        }
+
+        (new SessionService($f3->get('DB')))->storePendingAuthorizeRequest($pending);
+        $_SESSION['email_login_challenge'] = [
+            'id' => (int) $challenge['id'],
+            'selector' => (string) $challenge['selector'],
+            'email' => (string) $challenge['email'],
+            'client_pk' => (int) $challenge['client_pk'],
+        ];
+    }
+
+    private function emailFlowParams(Base $f3): array
+    {
+        $flow = (string) ($f3->get('GET.flow') ?? $f3->get('POST.flow') ?? '');
+        $signature = (string) ($f3->get('GET.sig') ?? $f3->get('POST.sig') ?? '');
+
+        if ($flow === '' || $signature === '' || !hash_equals($this->emailFlowSignature($flow), $signature)) {
+            return [
+                'flow' => '',
+                'sig' => '',
+            ];
+        }
+
+        return [
+            'flow' => $flow,
+            'sig' => $signature,
+        ];
+    }
+
+    private function validRestoredEmailFlow(array $pending, array $challenge): bool
+    {
+        $requiredPending = ['client_id', 'client_pk', 'redirect_uri', 'response_type', 'state', 'created_at'];
+
+        foreach ($requiredPending as $key) {
+            if (!array_key_exists($key, $pending) || (string) $pending[$key] === '') {
+                return false;
+            }
+        }
+
+        if ((int) $pending['client_pk'] <= 0 || (int) $challenge['client_pk'] !== (int) $pending['client_pk']) {
+            return false;
+        }
+
+        if ((int) ($challenge['id'] ?? 0) <= 0) {
+            return false;
+        }
+
+        return (string) ($challenge['selector'] ?? '') !== ''
+            && filter_var((string) ($challenge['email'] ?? ''), FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    private function emailFlowSignature(string $payload): string
+    {
+        return hash_hmac('sha256', $payload, $this->flowSigningKey());
+    }
+
+    private function flowSigningKey(): string
+    {
+        $config = Base::instance()->get('APP_CONFIG') ?: [];
+        $secret = (string) ($config['app']['auth_secret'] ?? '');
+
+        if ($secret !== '') {
+            return $secret;
+        }
+
+        return (string) (($config['db']['password'] ?? '') ?: __DIR__);
+    }
+
+    private function base64UrlEncode(string $value): string
+    {
+        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+    }
+
+    private function base64UrlDecode(string $value): string
+    {
+        $padded = str_pad(strtr($value, '-_', '+/'), strlen($value) % 4 === 0 ? strlen($value) : strlen($value) + 4 - strlen($value) % 4, '=', STR_PAD_RIGHT);
+
+        return base64_decode($padded, true) ?: '';
     }
 
     private function clientBranding(array $client): array

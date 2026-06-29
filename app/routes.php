@@ -40,6 +40,22 @@ $f3->route('GET /authorize', function (Base $f3): void {
     (new App\Controllers\AuthController())->authorize($f3);
 });
 
+$f3->route('POST /authorize/continue', function (Base $f3): void {
+    (new App\Controllers\AuthController())->continueExistingSession($f3);
+});
+
+$f3->route('POST /authorize/use-another-account', function (Base $f3): void {
+    (new App\Controllers\AuthController())->useAnotherAccount($f3);
+});
+
+$f3->route('POST /token', function (Base $f3): void {
+    (new App\Controllers\ApiController())->token($f3);
+});
+
+$f3->route(['GET /logout', 'POST /logout'], function (Base $f3): void {
+    (new App\Controllers\ApiController())->logout($f3);
+});
+
 $f3->route('GET /oauth/email', function (Base $f3): void {
     (new App\Controllers\AuthController())->emailForm($f3);
 });

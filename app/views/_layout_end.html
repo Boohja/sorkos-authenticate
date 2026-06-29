@@ -1,6 +1,9 @@
 </main>
 <check if="{{ @layout_variant=='split' }}">
     <true>
+                <check if="{{ @client_back_url }}">
+                    <a class="split-flow-back" href="{{ @client_back_url }}">{{ @action.back_to_client,@client_back_label | format }}</a>
+                </check>
             </div>
         </div>
     </true>

@@ -64,6 +64,17 @@ class ClientService
         return is_array($client) ? $client : null;
     }
 
+    public function secretValid(array $client, string $secret): bool
+    {
+        if (empty($client['is_confidential'])) {
+            return true;
+        }
+
+        $hash = (string) ($client['client_secret_hash'] ?? '');
+
+        return $hash !== '' && $secret !== '' && password_verify($secret, $hash);
+    }
+
     public function redirectUriAllowed(int $clientPk, string $redirectUri): bool
     {
         $stmt = $this->db->pdo()->prepare(

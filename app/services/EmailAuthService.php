@@ -134,19 +134,25 @@ class EmailAuthService
     public function sendCode(string $email, string $code, string $continueUrl, I18n $i18n): bool
     {
         $subject = $i18n->t('email.mail_subject');
-        $body = $i18n->t('email.mail_body', [
+        $textBody = $i18n->t('email.mail_body', [
             'code' => $code,
             'url' => $continueUrl,
         ]);
+        $htmlBody = $i18n->t('email.mail_body_html', [
+            'code' => htmlspecialchars($code, ENT_QUOTES, 'UTF-8'),
+            'url' => htmlspecialchars($continueUrl, ENT_QUOTES, 'UTF-8'),
+        ]);
+        $boundary = 'sorkos-login-' . bin2hex(random_bytes(12));
 
         $headers = [
             'From: Sorkos Login <login@sorkos.net>',
             'Reply-To: login@sorkos.net',
-            'Content-Type: text/plain; charset=UTF-8',
+            'MIME-Version: 1.0',
+            'Content-Type: multipart/alternative; boundary="' . $boundary . '"',
             'X-Mailer: PHP/' . PHP_VERSION,
         ];
 
-        return mail($email, $subject, $body, implode("\r\n", $headers));
+        return mail($email, $subject, $this->multipartBody($boundary, $textBody, $htmlBody), implode("\r\n", $headers));
     }
 
     public function verifyCode(int $id, string $selector, string $code): ?array
@@ -343,6 +349,28 @@ class EmailAuthService
         $stmt->execute($params);
 
         return (int) $stmt->fetchColumn();
+    }
+
+    private function multipartBody(string $boundary, string $textBody, string $htmlBody): string
+    {
+        return implode("\r\n", [
+            'This is a multi-part message in MIME format.',
+            '',
+            '--' . $boundary,
+            'Content-Type: text/plain; charset=UTF-8',
+            'Content-Transfer-Encoding: 8bit',
+            '',
+            $textBody,
+            '',
+            '--' . $boundary,
+            'Content-Type: text/html; charset=UTF-8',
+            'Content-Transfer-Encoding: 8bit',
+            '',
+            $htmlBody,
+            '',
+            '--' . $boundary . '--',
+            '',
+        ]);
     }
 
     private function hashCode(string $code): string

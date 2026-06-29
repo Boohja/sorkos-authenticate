@@ -1,0 +1,30 @@
+<include href="_layout_start.html" />
+<section class="panel auth-panel">
+    <h1 class="auth-title">
+        <span class="auth-client-mark">
+            <check if="{{ @client_logo }}">
+                <true><img class="client-logo" src="{{ @client_logo }}" alt="{{ @client.display_name }}"></true>
+                <false><strong class="client-name">{{ @client.display_name }}</strong></false>
+            </check>
+        </span>
+        <span class="auth-trust-row">
+            <span class="auth-trust-word">{{ @login.uses }}</span>
+            <img class="sorkos-auth-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
+        </span>
+    </h1>
+
+    <p class="auth-copy existing-session-copy">
+        {{ @existing_session.already_logged_in }}<br>
+        <strong>{{ @user_label }}</strong>
+    </p>
+
+    <div class="actions">
+        <form method="post" action="/authorize/continue">
+            <button class="button primary" type="submit">{{ @existing_session.continue }}</button>
+        </form>
+        <form method="post" action="/authorize/use-another-account">
+            <button class="button" type="submit">{{ @existing_session.use_another }}</button>
+        </form>
+    </div>
+</section>
+<include href="_layout_end.html" />

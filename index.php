@@ -40,6 +40,8 @@ $f3->set('LOCALES', __DIR__ . '/app/lang/');
 $f3->set('LANGUAGE', 'en');
 $f3->set('REROUTE_TRAILING_SLASH', false);
 $f3->set('layout_variant', '');
+$f3->set('client_back_url', '');
+$f3->set('client_back_label', '');
 
 if (!empty($config['app']['timezone'])) {
     date_default_timezone_set($config['app']['timezone']);

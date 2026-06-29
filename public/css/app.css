@@ -204,6 +204,7 @@ a {
 }
 
 .split-column {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -212,6 +213,23 @@ a {
   min-height: 100dvh;
   background: var(--surface);
   padding: clamp(48px, 7vw, 96px);
+}
+
+.split-flow-back {
+  position: absolute;
+  left: clamp(48px, 7vw, 96px);
+  bottom: 22px;
+  max-width: min(430px, calc(100% - 96px));
+  color: #203a5f;
+  font-size: 13px;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.split-flow-back:hover,
+.split-flow-back:focus-visible {
+  color: var(--accent-strong);
+  text-decoration: underline;
 }
 
 .split-header {
@@ -322,6 +340,14 @@ a {
 .auth-copy {
   max-width: 34ch;
   margin-bottom: 8px;
+}
+
+.existing-session-copy strong {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--text);
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .auth-notice {
@@ -1096,6 +1122,13 @@ pre {
   .split-column {
     min-height: 0;
     padding: 34px 20px 46px;
+  }
+
+  .split-flow-back {
+    position: static;
+    align-self: flex-start;
+    max-width: 100%;
+    margin-top: 28px;
   }
 
   .landing-message h1 {

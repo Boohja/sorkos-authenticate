@@ -74,6 +74,7 @@ class SessionService
             'response_type' => $request['response_type'] ?? 'code',
             'state' => $request['state'] ?? '',
             'scope' => $request['scope'] ?? '',
+            'prompt' => $request['prompt'] ?? '',
             'lang' => $request['lang'] ?? '',
         ];
         $query = array_filter($query, static fn ($value): bool => (string) $value !== '');
@@ -136,6 +137,37 @@ class SessionService
         }
 
         return is_array($user) ? $user : null;
+    }
+
+    public function revokeCurrentSession(): bool
+    {
+        $token = (string) ($_COOKIE[self::AUTH_COOKIE] ?? '');
+        $revoked = false;
+
+        if ($token !== '' && $this->db->isConfigured()) {
+            $stmt = $this->db->pdo()->prepare(
+                'UPDATE auth_sessions
+                 SET revoked_at = :revoked_at
+                 WHERE session_hash = :session_hash
+                 AND revoked_at IS NULL'
+            );
+            $stmt->execute([
+                'revoked_at' => date('Y-m-d H:i:s'),
+                'session_hash' => hash('sha256', $token),
+            ]);
+            $revoked = $stmt->rowCount() > 0;
+        }
+
+        setcookie(self::AUTH_COOKIE, '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => $this->isSecureRequest(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        unset($_COOKIE[self::AUTH_COOKIE]);
+
+        return $revoked;
     }
 
     private function requestHash(string $value): ?string

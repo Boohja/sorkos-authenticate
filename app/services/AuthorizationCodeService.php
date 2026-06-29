@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use PDO;
+
 class AuthorizationCodeService
 {
     private const CODE_TTL_MINUTES = 10;
@@ -46,6 +48,74 @@ class AuthorizationCodeService
             'code' => $code,
             'state' => (string) ($pendingAuthorize['state'] ?? ''),
         ]);
+    }
+
+    public function redeem(string $code, int $clientPk, string $redirectUri): ?array
+    {
+        if ($code === '' || $clientPk <= 0 || $redirectUri === '') {
+            return null;
+        }
+
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+
+        try {
+            $stmt = $pdo->prepare(
+                'SELECT c.*, u.public_id, u.email, u.email_verified, u.display_name, u.avatar_url, u.preferred_language
+                 FROM auth_authorization_codes c
+                 INNER JOIN auth_users u ON u.id = c.user_id
+                 WHERE c.code_hash = :code_hash
+                 AND c.client_id = :client_id
+                 AND c.redirect_uri = :redirect_uri
+                 AND c.used_at IS NULL
+                 AND c.expires_at > NOW()
+                 AND u.disabled_at IS NULL
+                 LIMIT 1'
+            );
+            $stmt->execute([
+                'code_hash' => hash('sha256', $code),
+                'client_id' => $clientPk,
+                'redirect_uri' => $redirectUri,
+            ]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!is_array($row)) {
+                $pdo->rollBack();
+                return null;
+            }
+
+            $update = $pdo->prepare(
+                'UPDATE auth_authorization_codes
+                 SET used_at = :used_at
+                 WHERE id = :id AND used_at IS NULL'
+            );
+            $update->execute([
+                'used_at' => date('Y-m-d H:i:s'),
+                'id' => (int) $row['id'],
+            ]);
+
+            if ($update->rowCount() !== 1) {
+                $pdo->rollBack();
+                return null;
+            }
+
+            $pdo->commit();
+
+            return [
+                'id' => (string) $row['public_id'],
+                'email' => $row['email'] !== null ? (string) $row['email'] : null,
+                'email_verified' => (bool) $row['email_verified'],
+                'display_name' => $row['display_name'] !== null ? (string) $row['display_name'] : null,
+                'avatar_url' => $row['avatar_url'] !== null ? (string) $row['avatar_url'] : null,
+                'preferred_language' => $row['preferred_language'] !== null ? (string) $row['preferred_language'] : null,
+            ];
+        } catch (\Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            throw $exception;
+        }
     }
 
     private function appendParams(string $url, array $params): string

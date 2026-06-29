@@ -64,12 +64,15 @@ app.get('/login', (req, res) => {
     <div class="endpoint">
         <h2>3. User Signs In With A Provider</h2>
         <p>If there is no central Sorkos Login session, the user chooses an enabled provider. The first implemented provider is E-Mail, which sends a six-digit one-time code through Sorkos Login's internal browser provider flow. Google and Discord remain configured placeholders until their external OAuth callbacks are implemented.</p>
+        <p>If a central Sorkos Login session already exists, Sorkos asks the user to continue as the current account before returning to the client. A client can opt into the previous silent SSO behavior with <code>prompt=none</code>.</p>
     </div>
 
     <div class="endpoint">
         <h2>4. Sorkos Login Redirects Back To The Client</h2>
         <p>After successful authentication, Sorkos Login creates a short-lived authorization code and redirects the user back to the original client callback.</p>
         <pre>https://client.example/auth/callback?code=example-code&amp;state=example-state</pre>
+        <p>If the user backs out of the Sorkos flow, the callback receives <code>error=access_denied</code> with the original <code>state</code>.</p>
+        <pre>https://client.example/auth/callback?error=access_denied&amp;state=example-state</pre>
         <details class="code-example">
             <summary>Callback validation examples</summary>
             <div class="code-tabs">
@@ -91,6 +94,10 @@ if ($returnedState === '' || !hash_equals($expectedState, $returnedState)) {
     exit('Invalid state');
 }
 
+if (($_GET['error'] ?? '') === 'access_denied') {
+    exit('Sign-in cancelled');
+}
+
 $code = $_GET['code'] ?? '';</pre>
                 </div>
                 <div class="tab-panel node-panel">
@@ -100,6 +107,11 @@ $code = $_GET['code'] ?? '';</pre>
 
   if (!returnedState || returnedState !== expectedState) {
     res.status(400).send('Invalid state');
+    return;
+  }
+
+  if (req.query.error === 'access_denied') {
+    res.send('Sign-in cancelled');
     return;
   }
 
@@ -113,7 +125,7 @@ $code = $_GET['code'] ?? '';</pre>
 
     <div class="endpoint">
         <h2>5. Client Exchanges The Code Server-Side</h2>
-        <p>The client validates the returned <code>state</code>, then posts the authorization code to <a href="/docs/api#/Token/post_token"><code>/token</code></a> from its server. If valid, Sorkos Login returns normalized user information.</p>
+        <p>The client validates the returned <code>state</code>, then posts the authorization code to <a href="/docs/api#/Token/post_token"><code>/token</code></a> from its server. The client secret authenticates the project, and the one-time code identifies the Sorkos user who completed the browser flow. If valid, Sorkos Login returns normalized user information.</p>
         <details class="code-example">
             <summary>Token exchange examples</summary>
             <div class="code-tabs">
@@ -167,6 +179,12 @@ const tokenResult = await response.json();</pre>
         <p>The client stores its own local session data. Sorkos Login does not share cookies across projects and does not write sessions for client applications.</p>
     </div>
 
-    <p class="notice">Current implementation status: <code>/authorize</code> validation, the provider-selection screen, and first-party E-Mail login exist. External OAuth providers, authorization-code issuing, <code>/token</code>, and <code>/logout</code> are still upcoming implementation steps.</p>
+    <div class="endpoint">
+        <h2>7. Client Handles Logout</h2>
+        <p>The client clears its own local session first, then redirects the browser to <a href="/docs/api#/Session/get_logout"><code>/logout</code></a> to clear the central Sorkos Login cookie. A supplied <code>redirect_uri</code> is only used when it exactly matches a registered URI for the supplied <code>client_id</code>.</p>
+        <pre>{{ @request_origin }}/logout?client_id=example-id&amp;redirect_uri=https%3A%2F%2Fclient.example%2Fauth%2Fcallback</pre>
+    </div>
+
+    <p class="notice">Current implementation status: <code>/authorize</code> validation, the provider-selection screen, first-party E-Mail login, authorization-code issuing, <code>/token</code>, and <code>/logout</code> exist. External OAuth providers are still upcoming implementation steps.</p>
 </section>
 <include href="_layout_end.html" />

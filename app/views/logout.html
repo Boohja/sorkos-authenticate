@@ -1,0 +1,12 @@
+<include href="_layout_start.html" />
+<section class="auth-card">
+    <div class="auth-brand">
+        <img class="sorkos-auth-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
+    </div>
+    <h1>Logged out</h1>
+    <check if="{{ @revoked }}">
+        <true><p>Your Sorkos Login session has been ended.</p></true>
+        <false><p>There was no active Sorkos Login session to end.</p></false>
+    </check>
+</section>
+<include href="_layout_end.html" />
