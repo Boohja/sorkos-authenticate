@@ -20,6 +20,18 @@ $f3->route(['GET /privacy', 'GET /privacy/'], function (Base $f3): void {
     (new App\Controllers\HomeController())->privacy($f3);
 });
 
+$f3->route(['GET /account', 'GET /account/'], function (Base $f3): void {
+    (new App\Controllers\HomeController())->account($f3);
+});
+
+$f3->route('POST /account/display-name', function (Base $f3): void {
+    (new App\Controllers\HomeController())->updateDisplayName($f3);
+});
+
+$f3->route(['GET /profile', 'GET /profile/'], function (Base $f3): void {
+    $f3->reroute('/account');
+});
+
 $f3->route('GET /docs/api', function (Base $f3): void {
     (new App\Controllers\DocsController())->api($f3);
 });

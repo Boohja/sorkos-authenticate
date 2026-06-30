@@ -1,0 +1,107 @@
+<include href="_layout_start.html" />
+<section class="account-page">
+    <check if="{{ @account_user }}">
+        <true>
+            <div class="account-hero">
+                <check if="{{ @account_avatar_url }}">
+                    <true><img class="account-avatar" src="{{ @account_avatar_url }}" alt=""></true>
+                    <false><span class="account-avatar fallback" aria-hidden="true">{{ @account_user_initial }}</span></false>
+                </check>
+                <div>
+                    <h1>{{ @account_user_label }}</h1>
+                    <p>Manage the central identity used when Sorkos projects ask you to sign in.</p>
+                </div>
+            </div>
+
+            <div class="account-grid">
+                <section class="account-section">
+                    <h2>Identity</h2>
+                    <dl class="account-data">
+                        <dt>Display name</dt>
+                        <dd>{{ @account_user.display_name ?: 'Not set' }}</dd>
+                        <dt>Email address</dt>
+                        <dd>{{ @account_user.email ?: 'Not set' }}</dd>
+                        <dt>Provider</dt>
+                        <dd>{{ @account_provider_label }}</dd>
+                    </dl>
+
+                    <check if="{{ @account_show_identity_details }}">
+                        <div class="identity-list">
+                            <repeat group="{{ @account_identities }}" value="{{ @identity }}">
+                                <article class="identity-row">
+                                    <strong>{{ @identity.provider_label }}</strong>
+                                    <span>{{ @identity.email ?: 'No provider email stored' }}</span>
+                                </article>
+                            </repeat>
+                        </div>
+                    </check>
+
+                    <check if="{{ @account_can_edit_display_name }}">
+                        <form class="form-stack account-form" method="post" action="/account/display-name">
+                            <label for="display-name">Change display name</label>
+                            <input id="display-name" name="display_name" type="text" maxlength="255" autocomplete="name" value="{{ @account_user.display_name }}">
+                            <button class="button primary" type="submit">Save display name</button>
+                        </form>
+                    </check>
+
+                    <check if="{{ @account_display_name_updated }}">
+                        <p class="notice account-update-notice">Display name saved. Projects will see this change the next time you log out and sign in again.</p>
+                    </check>
+                </section>
+
+                <section class="account-section">
+                    <h2>Connected projects</h2>
+                    <check if="{{ count(@account_clients) }}">
+                        <true>
+                            <div class="account-client-list">
+                                <repeat group="{{ @account_clients }}" value="{{ @client }}">
+                                    <a class="account-client" href="{{ @client.url ?: '#' }}"<check if="{{ @client.url }}"> target="_blank" rel="noopener"</check><check if="{{ !@client.url }}"> aria-disabled="true"</check>>
+                                        <check if="{{ @client.logo }}">
+                                            <true><img src="{{ @client.logo }}" alt="{{ @client.display_name }}"></true>
+                                            <false><span aria-hidden="true">{{ @client.initial }}</span></false>
+                                        </check>
+                                        <div>
+                                            <strong>{{ @client.display_name }}</strong>
+                                            <check if="{{ @client.connected_label }}"><small>{{ @client.connected_label }}</small></check>
+                                        </div>
+                                    </a>
+                                </repeat>
+                            </div>
+                        </true>
+                        <false>
+                            <p>No connected projects are stored for this account yet.</p>
+                        </false>
+                    </check>
+                </section>
+
+                <section class="account-section account-actions">
+                    <h2>Session</h2>
+                    <p>End the central Sorkos session on this browser. Client projects may keep their own local sessions until you sign out there too.</p>
+                    <form method="post" action="/logout">
+                        <button class="button primary" type="submit">Log out</button>
+                    </form>
+                </section>
+
+                <section class="account-section">
+                    <h2>Account deletion</h2>
+                    <check if="{{ @account_has_clients }}">
+                        <true><p>Deleting your Sorkos account is currently not supported while connected projects still use this identity.</p></true>
+                        <false><p>Deleting your Sorkos account is currently not available. You can log out of this browser session instead.</p></false>
+                    </check>
+                    <div class="account-delete-disabled" aria-disabled="true">
+                        <button class="button danger-button" type="button" disabled>Delete Sorkos account</button>
+                        <small>This action is disabled.</small>
+                    </div>
+                </section>
+            </div>
+        </true>
+        <false>
+            <div class="account-empty">
+                <h1>No active Sorkos session</h1>
+                <p>Sign in through a Sorkos project first, then return here to manage your account.</p>
+                <a class="button" href="/">Back to landing page</a>
+            </div>
+        </false>
+    </check>
+</section>
+<include href="_layout_end.html" />

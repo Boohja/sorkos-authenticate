@@ -1,5 +1,11 @@
 <include href="_layout_start.html" />
 <section class="landing-message">
     <h1>Central login for Sorkos projects</h1>
+    <check if="{{ @current_user }}">
+        <p class="landing-session-hint">
+            Logged in as <strong>{{ @current_user_label }}</strong>
+            <a href="/account">Manage</a>
+        </p>
+    </check>
 </section>
 <include href="_layout_end.html" />
