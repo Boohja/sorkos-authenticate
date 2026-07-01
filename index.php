@@ -32,6 +32,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 $f3 = Base::instance();
 $config = require __DIR__ . '/app/config/config.php';
 
+$f3->set('TEMP', __DIR__ . '/tmp/');
 $f3->set('AUTOLOAD', __DIR__ . '/app/controllers/|' . __DIR__ . '/app/models/|' . __DIR__ . '/app/services/');
 $f3->set('DEBUG', (int) ($config['app']['debug'] ?? 0));
 $f3->set('APP_CONFIG', $config);

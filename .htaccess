@@ -1,4 +1,12 @@
+Options -Indexes
+
 RewriteEngine On
+
+RewriteRule ^(?:\.git|\.codex|\.agents|app|docs|lib|sql|tests|tmp|vendor)(?:/|$) - [F,L]
+RewriteRule ^(?:composer\.(?:json|lock)|phpunit\.xml|README\.md|setup\.lock)$ - [F,L]
+
+RewriteRule ^(css|img|js|vendor)/(.*)$ public/$1/$2 [L]
+RewriteRule ^(favicon(?:L)?\.png|favicon\.ico)$ public/$1 [L]
 
 RewriteRule ^docs/?$ index.php [QSA,L]
 

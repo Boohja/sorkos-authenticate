@@ -4,17 +4,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ @title ?: 'Sorkos Login' }}</title>
-    <link rel="icon" href="/public/favicon.ico" sizes="any">
-    <link rel="icon" type="image/png" href="/public/favicon.png" sizes="32x32">
-    <link rel="apple-touch-icon" href="/public/faviconL.png">
-    <link rel="stylesheet" href="/public/css/app.css?v=20260629-account-surface">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" href="/favicon.png" sizes="32x32">
+    <link rel="apple-touch-icon" href="/faviconL.png">
+    <link rel="stylesheet" href="/css/app.css?v=20260629-account-surface">
 </head>
 <body class="{{ @layout_variant=='split' ? 'split-layout' : '' }}">
 <check if="{{ @layout_variant=='split' }}">
     <true>
         <div class="split-shell">
             <aside class="split-media" aria-hidden="true">
-                <img class="split-media-image" src="/public/img/door.webp" alt="">
+                <img class="split-media-image" src="/img/door.webp" alt="">
                 <check if="{{ @client_icon }}">
                     <div class="split-client-icon">
                         <img src="{{ @client_icon }}" alt="">
@@ -25,7 +25,7 @@
                 <check if="{{ !@hide_split_header }}">
                     <header class="split-header">
                         <a class="brand" href="/">
-                            <img class="brand-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
+                            <img class="brand-logo" src="/img/sorkos-landscape-light.svg" alt="Sorkos">
                             <span class="brand-divider" aria-hidden="true"></span>
                             <span class="brand-name">Login</span>
                         </a>
@@ -37,7 +37,7 @@
         <header class="site-header">
             <div class="site-header-inner">
                 <a class="brand" href="/">
-                    <img class="brand-logo" src="/public/img/sorkos-landscape-light.svg" alt="Sorkos">
+                    <img class="brand-logo" src="/img/sorkos-landscape-light.svg" alt="Sorkos">
                     <span class="brand-divider" aria-hidden="true"></span>
                     <span class="brand-name">Login</span>
                 </a>

@@ -63,3 +63,14 @@ Run the test suite:
 ```bash
 composer test
 ```
+
+Live database integration tests are skipped by default because they write rows.
+They use unique `pest_*` markers and clean up matching clients, users, codes,
+sessions, identities, and redirect URIs after each test.
+
+Run them only against a database where these temporary rows are acceptable:
+
+```powershell
+$env:SORKOS_LIVE_DB_TESTS='1'
+vendor\bin\pest.bat tests\Integration
+```

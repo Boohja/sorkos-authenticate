@@ -20,24 +20,18 @@ class AdminAuthService
     public function attempt(string $username, string $password, string $otp): bool
     {
         $admin = $this->findActiveByUsername($username);
-        echo "Admin: " . print_r($admin, true) . "\n"; // Debugging line
 
         if ($admin === null) {
             return false;
         }
 
-        echo "Password Hash: " . $password . "\n"; // Debugging line
         if (!password_verify($password, (string) $admin['password_hash'])) {
             return false;
         }
-        echo "Password verified successfully.\n"; // Debugging line
 
-
-        echo "TOTP Secret: " . $admin['totp_secret_encrypted'] . "\n"; // Debugging line
         if (empty($admin['totp_secret_encrypted']) || !$this->totp->verify((string) $admin['totp_secret_encrypted'], $otp)) {
             return false;
         }
-        echo "TOTP verified successfully.\n"; // Debugging line
 
         session_regenerate_id(true);
         $_SESSION['admin_user_id'] = (int) $admin['id'];
