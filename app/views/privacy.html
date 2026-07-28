@@ -4,38 +4,42 @@
         <img src="/img/door.webp" alt="">
     </aside>
     <div class="info-copy">
-        <h1>Data privacy</h1>
-        <p>Sorkos Login stores only the information needed to identify you, show your profile correctly, and keep your login flow comfortable across Sorkos projects.</p>
+        <h1>{{ @privacy.title }}</h1>
+        <p>{{ @privacy.intro | raw }}</p>
 
         <div class="plain-sections">
             <section>
-                <h2>What we store</h2>
-                <p>We store as little data as possible for the login service to work.</p>
+                <h2>{{ @privacy.store_title }}</h2>
+                <p>{{ @privacy.store_intro }}</p>
                 <ul class="data-list">
                     <li>
-                        <strong>Email address</strong>
-                        <span>Used to identify your account and support email-based login.</span>
+                        <strong>{{ @privacy.email_title }}</strong>
+                        <span>{{ @privacy.email_text }}</span>
                     </li>
                     <li>
-                        <strong>Display name</strong>
-                        <span>Shown inside Sorkos projects where a name is useful.</span>
+                        <strong>{{ @privacy.name_title }}</strong>
+                        <span>{{ @privacy.name_text }}</span>
                     </li>
                     <li>
-                        <strong>Avatar link</strong>
-                        <span>Stored as a link when a provider supplies one, so projects can show your profile image.</span>
+                        <strong>{{ @privacy.avatar_title }}</strong>
+                        <span>{{ @privacy.avatar_text }}</span>
                     </li>
                     <li>
-                        <strong>Preferred language</strong>
-                        <span>Used to show login screens and messages in the right language.</span>
+                        <strong>{{ @privacy.language_title }}</strong>
+                        <span>{{ @privacy.language_text }}</span>
                     </li>
                 </ul>
             </section>
             <section>
-                <h2>Remove your data</h2>
-                <p>If you wish to delete your data, find the "Manage Sorkos account" link on any Sorkos project once you are logged in.</p>
-                <p>This will take you to the account area where deletion and account controls belong.</p>
+                <h2>{{ @privacy.remove_title }}</h2>
+                <p>{{ @privacy.remove_text }}</p>
+                <p>{{ @privacy.remove_followup }}</p>
             </section>
         </div>
+
+        <check if="{{ @return_to }}">
+            <a class="button info-return" href="{{ @return_to }}">{{ @action.back_to_login }}</a>
+        </check>
     </div>
 </section>
 <include href="_layout_end.html" />

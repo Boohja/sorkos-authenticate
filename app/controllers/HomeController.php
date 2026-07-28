@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Services\AdminSetupService;
 use App\Services\Db;
+use App\Services\I18n;
 use App\Services\SessionService;
 use Base;
 use PDO;
@@ -58,12 +59,12 @@ class HomeController
 
     public function about(Base $f3): void
     {
-        $this->renderStatic($f3, 'About Sorkos Login', 'about.html', 'about');
+        $this->renderStatic($f3, 'about.page_title', 'about.html', 'about');
     }
 
     public function privacy(Base $f3): void
     {
-        $this->renderStatic($f3, 'Data Privacy - Sorkos Login', 'privacy.html', 'privacy');
+        $this->renderStatic($f3, 'privacy.page_title', 'privacy.html', 'privacy');
     }
 
     public function account(Base $f3): void
@@ -130,15 +131,94 @@ class HomeController
         $f3->reroute('/account');
     }
 
-    private function renderStatic(Base $f3, string $title, string $template, string $activeNav): void
+    private function renderStatic(Base $f3, string $titleKey, string $template, string $activeNav): void
     {
-        $f3->set('title', $title);
-        $f3->set('html_lang', 'en');
+        $returnTo = $this->loginReturnUrl($f3);
+        $i18n = $this->staticPageI18n($f3, $returnTo);
+        $f3->set('title', $i18n->t($titleKey));
+        $f3->set('html_lang', $i18n->language());
         $f3->set('active_nav', $activeNav);
         $f3->set('layout_variant', '');
         $f3->set('hide_split_header', false);
         $f3->set('client_icon', '');
+        $f3->set('return_to', $returnTo);
+
+        if ($returnTo !== '') {
+            $returnQuery = '?return_to=' . rawurlencode($returnTo);
+            $f3->set('about_url', '/about/' . $returnQuery);
+            $f3->set('privacy_url', '/privacy/' . $returnQuery);
+        }
+
         echo \Template::instance()->render($template);
+    }
+
+    private function staticPageI18n(Base $f3, string $returnTo): I18n
+    {
+        $requested = strtolower(substr(trim((string) ($f3->get('GET.lang') ?? '')), 0, 2));
+
+        if ($requested === '' && $returnTo !== '') {
+            $query = [];
+            parse_str((string) (parse_url($returnTo, PHP_URL_QUERY) ?? ''), $query);
+            $requested = strtolower(substr(trim((string) ($query['lang'] ?? '')), 0, 2));
+        }
+
+        if (in_array($requested, ['en', 'de'], true)) {
+            $f3->set('LANGUAGE', $requested);
+            return new I18n($f3, $requested);
+        }
+
+        return I18n::fromRequest($f3);
+    }
+
+    private function loginReturnUrl(Base $f3): string
+    {
+        $candidate = trim((string) ($f3->get('GET.return_to') ?? ''));
+
+        if ($candidate === '') {
+            $candidate = trim((string) ($f3->get('SERVER.HTTP_REFERER') ?? $_SERVER['HTTP_REFERER'] ?? ''));
+        }
+
+        if ($candidate === '') {
+            return '';
+        }
+
+        $parts = parse_url($candidate);
+
+        if ($parts === false) {
+            return '';
+        }
+
+        $path = (string) ($parts['path'] ?? '');
+        $allowedPaths = ['/authorize', '/oauth/email', '/oauth/email/verify'];
+
+        if (!in_array(rtrim($path, '/') ?: '/', $allowedPaths, true)) {
+            return '';
+        }
+
+        if (isset($parts['host'])) {
+            $requestHost = strtolower((string) (
+                $f3->get('HOST')
+                ?: $f3->get('SERVER.HTTP_HOST')
+                ?: ($_SERVER['HTTP_HOST'] ?? '')
+            ));
+            $candidateHost = strtolower((string) $parts['host']);
+
+            if ($requestHost === '' || $candidateHost !== preg_replace('/:\d+$/', '', $requestHost)) {
+                return '';
+            }
+
+            $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+
+            if (!in_array($scheme, ['http', 'https'], true)) {
+                return '';
+            }
+        } elseif (!str_starts_with($candidate, '/') || str_starts_with($candidate, '//')) {
+            return '';
+        }
+
+        $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+
+        return $path . $query;
     }
 
     private function currentUser(mixed $db): ?array

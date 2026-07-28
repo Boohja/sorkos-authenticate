@@ -34,7 +34,7 @@
         </repeat>
     </div>
 
-    <p class="notice auth-notice">{{ @login.provider_pending }}</p>
-    <p class="privacy-link">{{ @login.privacy_hint }} <a href="/privacy/">{{ @login.privacy_link }}</a></p>
+    <p class="login-context-link"><a href="{{ @about_url ?: '/about/' }}">{{ @login.why_link }}</a></p>
+    <p class="privacy-link">{{ @login.privacy_hint }} <a href="{{ @privacy_url ?: '/privacy/' }}">{{ @login.privacy_link }}</a></p>
 </section>
 <include href="_layout_end.html" />

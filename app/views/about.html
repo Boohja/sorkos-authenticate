@@ -4,19 +4,27 @@
         <img src="/img/door.webp" alt="">
     </aside>
     <div class="info-copy">
-        <h1>About</h1>
-        <p>One familiar login flow gives people a calmer way into each Sorkos project, while developers get a predictable integration point for authentication.</p>
+        <h1>{{ @about.title }}</h1>
+        <p>{{ @about.intro | raw }}</p>
 
         <div class="plain-sections">
             <section>
-                <h2>Streamlined login flow</h2>
-                <p>Sorkos projects can share a single, recognizable login experience instead of asking users to relearn account steps for every app.</p>
+                <h2>{{ @about.streamlined_title }}</h2>
+                <p>{{ @about.streamlined_text }}</p>
             </section>
             <section>
-                <h2>Developer experience</h2>
-                <p>OAuth clients can rely on the same authorization entry point, provider selection, and user identity shape across Sorkos projects.</p>
+                <h2>{{ @about.developer_title }}</h2>
+                <p>{{ @about.developer_text }}</p>
+            </section>
+            <section>
+                <h2>{{ @about.minimal_title }}</h2>
+                <p>{{ @about.minimal_text }} <a href="{{ @privacy_url }}">{{ @about.minimal_link }}</a></p>
             </section>
         </div>
+
+        <check if="{{ @return_to }}">
+            <a class="button info-return" href="{{ @return_to }}">{{ @action.back_to_login }}</a>
+        </check>
     </div>
 </section>
 <include href="_layout_end.html" />

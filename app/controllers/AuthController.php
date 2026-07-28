@@ -341,12 +341,31 @@ class AuthController
     private function render(Base $f3, string $view, array $data): void
     {
         $data = $this->withClientBackLink($f3, $data);
+        $data = $this->withLoginInformationLinks($f3, $data);
 
         foreach ($data as $key => $value) {
             $f3->set($key, $value);
         }
 
         echo \Template::instance()->render($view);
+    }
+
+    private function withLoginInformationLinks(Base $f3, array $data): array
+    {
+        $data['about_url'] = '/about/';
+        $data['privacy_url'] = '/privacy/';
+        $session = new SessionService($f3->get('DB'));
+
+        if ($session->pendingAuthorizeRequest() === null) {
+            return $data;
+        }
+
+        $returnUrl = $session->pendingAuthorizeUrl();
+        $returnQuery = '?return_to=' . rawurlencode($returnUrl);
+        $data['about_url'] .= $returnQuery;
+        $data['privacy_url'] .= $returnQuery;
+
+        return $data;
     }
 
     private function withClientBackLink(Base $f3, array $data): array

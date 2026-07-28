@@ -26,6 +26,7 @@
             <p class="notice error">{{ Base::instance()->get(@code_error_key) }}</p>
         </check>
         <button class="button primary" type="submit">{{ @email.code_submit }}</button>
+        <p class="form-pending-status" role="status" aria-live="polite" data-form-pending-status hidden>{{ @email.verifying }}</p>
         <div class="form-actions">
             <a class="button" href="{{ @back_url }}">{{ @action.back }}</a>
         </div>
@@ -50,7 +51,7 @@
             full.value = value();
 
             if (/^\d{6}$/.test(full.value)) {
-                form.submit();
+                form.requestSubmit();
             }
         }
 
@@ -106,7 +107,12 @@
 
         var firstEmpty = fields.find(function (field) { return !field.value; });
         (firstEmpty || fields[0]).focus();
-        sync();
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', sync, { once: true });
+        } else {
+            sync();
+        }
     }());
 </script>
 <include href="_layout_end.html" />

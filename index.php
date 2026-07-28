@@ -43,6 +43,9 @@ $f3->set('REROUTE_TRAILING_SLASH', false);
 $f3->set('layout_variant', '');
 $f3->set('client_back_url', '');
 $f3->set('client_back_label', '');
+$f3->set('about_url', '/about/');
+$f3->set('privacy_url', '/privacy/');
+$f3->set('return_to', '');
 
 if (!empty($config['app']['timezone'])) {
     date_default_timezone_set($config['app']['timezone']);

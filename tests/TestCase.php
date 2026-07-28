@@ -42,6 +42,9 @@ abstract class TestCase extends BaseTestCase
         $f3->set('client_back_url', '');
         $f3->set('client_back_label', '');
         $f3->set('client_icon', '');
+        $f3->set('about_url', '/about/');
+        $f3->set('privacy_url', '/privacy/');
+        $f3->set('return_to', '');
 
         foreach (require $root . '/app/lang/en.php' as $key => $value) {
             $f3->set($key, $value);

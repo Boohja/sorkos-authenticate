@@ -1,3 +1,6 @@
+.agents
+.codex
+.impeccable
 docs/
 app/config/local.php
 tmp/
