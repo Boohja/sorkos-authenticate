@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Services\AuthorizationCodeService;
+use App\Services\ClientConnectionService;
 use App\Services\ClientService;
 use App\Services\SessionService;
 use Base;
@@ -67,6 +68,30 @@ class ApiController
         }
 
         $this->renderLogoutConfirmation($f3, $revoked);
+    }
+
+    public function revokeClientConnection(Base $f3): void
+    {
+        $params = $this->requestParams($f3);
+        $clientId = trim((string) ($params['client_id'] ?? ''));
+        $clientSecret = (string) ($params['client_secret'] ?? '');
+        $publicUserId = trim((string) ($params['user_id'] ?? ''));
+
+        if ($clientId === '' || $clientSecret === '' || $publicUserId === '' || strlen($publicUserId) > 64) {
+            $this->json(['error' => 'invalid_request'], 400);
+            return;
+        }
+
+        $clients = new ClientService($f3->get('DB'));
+        $client = $clients->findActiveByClientId($clientId);
+
+        if ($client === null || empty($client['is_confidential']) || !$clients->secretValid($client, $clientSecret)) {
+            $this->json(['error' => 'invalid_client'], 401);
+            return;
+        }
+
+        (new ClientConnectionService($f3->get('DB')))->revokeForClient((int) $client['id'], $publicUserId);
+        http_response_code(204);
     }
 
     private function requestParams(Base $f3): array

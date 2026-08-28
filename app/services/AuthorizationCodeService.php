@@ -84,13 +84,14 @@ class AuthorizationCodeService
                 return null;
             }
 
+            $usedAt = date('Y-m-d H:i:s');
             $update = $pdo->prepare(
                 'UPDATE auth_authorization_codes
                  SET used_at = :used_at
                  WHERE id = :id AND used_at IS NULL'
             );
             $update->execute([
-                'used_at' => date('Y-m-d H:i:s'),
+                'used_at' => $usedAt,
                 'id' => (int) $row['id'],
             ]);
 
@@ -99,15 +100,28 @@ class AuthorizationCodeService
                 return null;
             }
 
+            (new ClientConnectionService($this->db))->recordSuccessfulLogin(
+                (int) $row['user_id'],
+                $clientPk,
+                (string) ($row['scope'] ?? ''),
+                $usedAt
+            );
+
             $pdo->commit();
+
+            $scopes = preg_split('/\s+/', strtolower(trim((string) ($row['scope'] ?? '')))) ?: [];
+            $sharesEmail = in_array('email', $scopes, true);
+            $sharesProfile = in_array('profile', $scopes, true);
 
             return [
                 'id' => (string) $row['public_id'],
-                'email' => $row['email'] !== null ? (string) $row['email'] : null,
-                'email_verified' => (bool) $row['email_verified'],
-                'display_name' => $row['display_name'] !== null ? (string) $row['display_name'] : null,
-                'avatar_url' => $row['avatar_url'] !== null ? (string) $row['avatar_url'] : null,
-                'preferred_language' => $row['preferred_language'] !== null ? (string) $row['preferred_language'] : null,
+                'email' => $sharesEmail && $row['email'] !== null ? (string) $row['email'] : null,
+                'email_verified' => $sharesEmail && (bool) $row['email_verified'],
+                'display_name' => $sharesProfile && $row['display_name'] !== null ? (string) $row['display_name'] : null,
+                'avatar_url' => $sharesProfile && $row['avatar_url'] !== null ? (string) $row['avatar_url'] : null,
+                'preferred_language' => $sharesProfile && $row['preferred_language'] !== null
+                    ? (string) $row['preferred_language']
+                    : null,
             ];
         } catch (\Throwable $exception) {
             if ($pdo->inTransaction()) {

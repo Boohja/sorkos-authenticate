@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Services\AdminAuthService;
+use App\Services\ClientConfigurationService;
 use Base;
 use PDO;
 
@@ -52,7 +53,9 @@ class AdminController
 
         $stmt = $f3->get('DB')->pdo()->query(
             'SELECT c.id, c.client_id, c.name, c.display_name, c.domain, c.enabled_providers, c.is_active, c.updated_at,
-                    (SELECT COUNT(*) FROM auth_client_redirect_uris r WHERE r.client_id = c.id) AS redirect_uri_count
+                    (SELECT COUNT(DISTINCT connection.user_id)
+                     FROM auth_user_client_connections connection
+                     WHERE connection.client_id = c.id) AS user_count
              FROM auth_clients c
              ORDER BY c.display_name ASC, c.client_id ASC'
         );
@@ -93,6 +96,7 @@ class AdminController
         $f3->set('admin', $admin);
         $f3->set('client', $client);
         $f3->set('redirect_uris', $redirectStmt->fetchAll(PDO::FETCH_ASSOC));
+        $f3->set('configuration_groups', (new ClientConfigurationService())->groups($client));
         echo \Template::instance()->render('admin_client_detail.html');
     }
 
@@ -167,6 +171,55 @@ class AdminController
         $f3->reroute('/admin/clients/' . $clientId);
     }
 
+    public function addConfigurationEntry(Base $f3): void
+    {
+        if ($this->requireAdmin($f3) === null) {
+            return;
+        }
+
+        $clientId = (int) $f3->get('PARAMS.id');
+        $group = trim((string) $f3->get('PARAMS.group'));
+        $key = trim((string) $f3->get('POST.config_key'));
+        $value = (string) $f3->get('POST.config_value');
+        $service = new ClientConfigurationService();
+        $column = $service->column($group);
+
+        if ($column !== null) {
+            $current = $this->clientConfigurationValue($f3, $clientId, $column);
+            $updated = $service->add($current, $group, $key, $value);
+
+            if ($updated !== null) {
+                $this->storeClientConfiguration($f3, $clientId, $column, $updated);
+            }
+        }
+
+        $f3->reroute('/admin/clients/' . $clientId);
+    }
+
+    public function deleteConfigurationEntry(Base $f3): void
+    {
+        if ($this->requireAdmin($f3) === null) {
+            return;
+        }
+
+        $clientId = (int) $f3->get('PARAMS.id');
+        $group = trim((string) $f3->get('PARAMS.group'));
+        $key = trim((string) $f3->get('PARAMS.key'));
+        $service = new ClientConfigurationService();
+        $column = $service->column($group);
+
+        if ($column !== null) {
+            $current = $this->clientConfigurationValue($f3, $clientId, $column);
+            $updated = $service->remove($current, $group, $key);
+
+            if ($updated !== null) {
+                $this->storeClientConfiguration($f3, $clientId, $column, $updated);
+            }
+        }
+
+        $f3->reroute('/admin/clients/' . $clientId);
+    }
+
     private function renderLogin(Base $f3, bool $invalid): void
     {
         $f3->set('title', 'Admin Login');
@@ -191,5 +244,26 @@ class AdminController
     private function auth(Base $f3): AdminAuthService
     {
         return new AdminAuthService($f3->get('DB'));
+    }
+
+    private function clientConfigurationValue(Base $f3, int $clientId, string $column): string
+    {
+        $stmt = $f3->get('DB')->pdo()->prepare(sprintf('SELECT %s FROM auth_clients WHERE id = :id LIMIT 1', $column));
+        $stmt->execute(['id' => $clientId]);
+
+        return (string) ($stmt->fetchColumn() ?: '');
+    }
+
+    private function storeClientConfiguration(Base $f3, int $clientId, string $column, string $json): void
+    {
+        $stmt = $f3->get('DB')->pdo()->prepare(sprintf(
+            'UPDATE auth_clients SET %s = :configuration, updated_at = :updated_at WHERE id = :id',
+            $column
+        ));
+        $stmt->execute([
+            'configuration' => $json,
+            'updated_at' => date('Y-m-d H:i:s'),
+            'id' => $clientId,
+        ]);
     }
 }

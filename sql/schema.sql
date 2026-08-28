@@ -111,19 +111,19 @@ CREATE TABLE auth_authorization_codes (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE auth_user_client_consents (
+CREATE TABLE auth_user_client_connections (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id BIGINT UNSIGNED NOT NULL,
   client_id BIGINT UNSIGNED NOT NULL,
   scope VARCHAR(255) NULL,
-  created_at DATETIME NOT NULL,
-  updated_at DATETIME NOT NULL,
-  revoked_at DATETIME NULL,
+  connected_at DATETIME NOT NULL,
+  last_used_at DATETIME NOT NULL,
   UNIQUE KEY uniq_user_client (user_id, client_id),
-  CONSTRAINT fk_consent_user
+  KEY idx_last_used_at (last_used_at),
+  CONSTRAINT fk_connection_user
     FOREIGN KEY (user_id) REFERENCES auth_users(id)
     ON DELETE CASCADE,
-  CONSTRAINT fk_consent_client
+  CONSTRAINT fk_connection_client
     FOREIGN KEY (client_id) REFERENCES auth_clients(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

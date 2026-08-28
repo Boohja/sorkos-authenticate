@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Services\AdminSetupService;
+use App\Services\ClientService;
 use App\Services\Db;
 use App\Services\I18n;
 use App\Services\SessionService;
@@ -71,11 +72,13 @@ class HomeController
     {
         $db = $f3->get('DB');
         $user = $this->currentUser($db);
+        $returnTo = $this->loginReturnUrl($f3);
+        $i18n = $this->accountI18n($f3, $user, $returnTo);
         $identities = $this->identityRows($db, $user);
-        $clients = $this->clientRows($db, $user);
+        $clients = $this->clientRows($db, $user, $i18n);
 
-        $f3->set('title', 'Account - Sorkos Login');
-        $f3->set('html_lang', 'en');
+        $f3->set('title', $i18n->t('account.page_title'));
+        $f3->set('html_lang', $i18n->language());
         $f3->set('active_nav', '');
         $f3->set('layout_variant', '');
         $f3->set('hide_split_header', false);
@@ -91,6 +94,9 @@ class HomeController
         $f3->set('account_display_name_updated', (string) ($f3->get('GET.updated') ?? '') === 'display-name');
         $f3->set('account_clients', $clients);
         $f3->set('account_has_clients', count($clients) > 0);
+        $f3->set('account_return_url', $returnTo !== '' ? $returnTo : '/');
+        $f3->set('account_return_label', $i18n->t($returnTo !== '' ? 'action.back_to_login' : 'account.back_home'));
+        $f3->set('account_display_name_action', $this->accountUrl($returnTo, true));
 
         echo \Template::instance()->render('account.html');
     }
@@ -100,9 +106,10 @@ class HomeController
         $db = $f3->get('DB');
         $user = $this->currentUser($db);
         $identities = $this->identityRows($db, $user);
+        $returnTo = $this->loginReturnUrl($f3);
 
         if (!$db instanceof Db || $user === null || !$this->hasProvider($identities, 'email')) {
-            $f3->reroute('/account');
+            $f3->reroute($this->accountUrl($returnTo));
             return;
         }
 
@@ -124,11 +131,11 @@ class HomeController
                 'id' => (int) $user['id'],
             ]);
 
-            $f3->reroute('/account?updated=display-name');
+            $f3->reroute($this->accountUrl($returnTo, false, 'display-name'));
             return;
         }
 
-        $f3->reroute('/account');
+        $f3->reroute($this->accountUrl($returnTo));
     }
 
     private function renderStatic(Base $f3, string $titleKey, string $template, string $activeNav): void
@@ -257,54 +264,107 @@ class HomeController
         }, $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    private function clientRows(mixed $db, ?array $user): array
+    private function clientRows(mixed $db, ?array $user, I18n $i18n): array
     {
         if (!$db instanceof Db || $user === null) {
             return [];
         }
 
         $stmt = $db->pdo()->prepare(
-            'SELECT c.id, c.display_name, c.domain, c.branding_json, source.connected_at, source.last_used_at
-             FROM (
-                SELECT client_id, MIN(connected_at) AS connected_at, MAX(last_used_at) AS last_used_at
-                FROM (
-                    SELECT client_id, MIN(created_at) AS connected_at, MAX(created_at) AS last_used_at
-                    FROM auth_authorization_codes
-                    WHERE user_id = :codes_user_id
-                    GROUP BY client_id
-                    UNION ALL
-                    SELECT client_id, MIN(created_at) AS connected_at, MAX(updated_at) AS last_used_at
-                    FROM auth_user_client_consents
-                    WHERE user_id = :consents_user_id
-                    AND revoked_at IS NULL
-                    GROUP BY client_id
-                ) client_sources
-                GROUP BY client_id
-             ) source
-             INNER JOIN auth_clients c ON c.id = source.client_id
-             ORDER BY last_used_at DESC, c.display_name ASC'
+            'SELECT c.id, c.display_name, c.domain, c.branding_json, c.settings_json,
+                    connection.scope, connection.connected_at, connection.last_used_at
+             FROM auth_user_client_connections connection
+             INNER JOIN auth_clients c ON c.id = connection.client_id
+             WHERE connection.user_id = :user_id
+             ORDER BY connection.last_used_at DESC, c.display_name ASC'
         );
-        $stmt->execute([
-            'codes_user_id' => (int) $user['id'],
-            'consents_user_id' => (int) $user['id'],
-        ]);
+        $stmt->execute(['user_id' => (int) $user['id']]);
 
-        return array_map(function (array $client): array {
-            $logo = $this->clientBrandingUrl($client, 'logo');
+        $clientService = new ClientService($db);
+
+        return array_map(function (array $client) use ($clientService, $i18n): array {
             $icon = $this->clientBrandingUrl($client, 'icon');
             $name = (string) $client['display_name'];
             $connectedAt = (string) ($client['connected_at'] ?? '');
+            $lastUsedAt = (string) ($client['last_used_at'] ?? '');
+            $deletionUrl = $clientService->accountDeletionUrl($client);
 
             return [
                 'display_name' => $name,
-                'domain' => (string) ($client['domain'] ?? ''),
-                'url' => $this->clientUrl((string) ($client['domain'] ?? '')),
-                'logo' => $logo !== '' ? $logo : $icon,
+                'icon' => $icon,
                 'initial' => $this->initial($name),
-                'connected_label' => $connectedAt !== '' ? 'Connected since ' . $this->dateLabel($connectedAt) : '',
-                'last_used_at' => (string) ($client['last_used_at'] ?? ''),
+                'connected_label' => $connectedAt !== ''
+                    ? $i18n->t('account.connected_since', [$this->dateLabel($connectedAt, $i18n->language())])
+                    : '',
+                'last_used_label' => $lastUsedAt !== ''
+                    ? $i18n->t('account.last_used', [$this->dateLabel($lastUsedAt, $i18n->language())])
+                    : '',
+                'shared_data' => $this->sharedDataLabels((string) ($client['scope'] ?? ''), $i18n),
+                'deletion_url' => $deletionUrl,
+                'deletion_label' => $deletionUrl !== ''
+                    ? $i18n->t('account.open_deletion', [$name])
+                    : '',
             ];
         }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    private function accountI18n(Base $f3, ?array $user, string $returnTo = ''): I18n
+    {
+        $requested = strtolower(substr(trim((string) ($f3->get('GET.lang') ?? '')), 0, 2));
+
+        if ($requested === '' && $returnTo !== '') {
+            $query = [];
+            parse_str((string) (parse_url($returnTo, PHP_URL_QUERY) ?? ''), $query);
+            $requested = strtolower(substr(trim((string) ($query['lang'] ?? '')), 0, 2));
+        }
+
+        $preferred = strtolower(substr(trim((string) ($user['preferred_language'] ?? '')), 0, 2));
+        $language = in_array($requested, ['en', 'de'], true)
+            ? $requested
+            : (in_array($preferred, ['en', 'de'], true) ? $preferred : '');
+
+        if ($language === '') {
+            return I18n::fromRequest($f3);
+        }
+
+        $f3->set('LANGUAGE', $language);
+
+        return new I18n($f3, $language);
+    }
+
+    private function accountUrl(string $returnTo, bool $displayNameAction = false, string $updated = ''): string
+    {
+        $params = [];
+
+        if ($updated !== '') {
+            $params['updated'] = $updated;
+        }
+
+        if ($returnTo !== '') {
+            $params['return_to'] = $returnTo;
+        }
+
+        $path = $displayNameAction ? '/account/display-name' : '/account';
+
+        return $params === [] ? $path : $path . '?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+    }
+
+    private function sharedDataLabels(string $scope, I18n $i18n): array
+    {
+        $scopes = preg_split('/\s+/', strtolower(trim($scope))) ?: [];
+        $labels = [$i18n->t('account.data.account_id')];
+
+        if (in_array('email', $scopes, true)) {
+            $labels[] = $i18n->t('account.data.email');
+        }
+
+        if (in_array('profile', $scopes, true)) {
+            $labels[] = $i18n->t('account.data.display_name');
+            $labels[] = $i18n->t('account.data.avatar');
+            $labels[] = $i18n->t('account.data.language');
+        }
+
+        return array_values(array_unique($labels));
     }
 
     private function clientBrandingUrl(array $client, string $key): string
@@ -393,24 +453,15 @@ class HomeController
         return in_array($scheme, ['http', 'https'], true) && filter_var($url, FILTER_VALIDATE_URL) ? $url : '';
     }
 
-    private function clientUrl(string $domain): string
-    {
-        $domain = trim($domain);
-
-        if ($domain === '') {
-            return '';
-        }
-
-        $candidate = preg_match('#^https?://#i', $domain) === 1 ? $domain : 'https://' . $domain;
-
-        return filter_var($candidate, FILTER_VALIDATE_URL) ? $candidate : '';
-    }
-
-    private function dateLabel(string $value): string
+    private function dateLabel(string $value, string $language = 'en'): string
     {
         $timestamp = strtotime($value);
 
-        return $timestamp === false ? $value : date('M j, Y', $timestamp);
+        if ($timestamp === false) {
+            return $value;
+        }
+
+        return $language === 'de' ? date('d.m.Y', $timestamp) : date('M j, Y', $timestamp);
     }
 
     private function initial(string $value): string

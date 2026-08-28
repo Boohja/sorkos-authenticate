@@ -100,6 +100,55 @@ it('renders a logged-out account page without destructive account actions enable
         ->and($html)->not->toContain('Delete Sorkos account');
 });
 
+it('renders connection timestamps, shared data, and the configured project deletion link', function (): void {
+    $html = $this->renderView('account.html', [
+        'title' => 'Account',
+        'html_lang' => 'en',
+        'active_nav' => '',
+        'account_user' => [
+            'display_name' => 'Matt',
+            'email' => 'matt@example.test',
+        ],
+        'account_user_label' => 'Matt',
+        'account_user_initial' => 'M',
+        'account_avatar_url' => '',
+        'account_provider_label' => 'E-Mail',
+        'account_show_identity_details' => false,
+        'account_can_edit_display_name' => true,
+        'account_display_name_updated' => false,
+        'account_has_clients' => true,
+        'account_display_name_action' => '/account/display-name?return_to=%2Fauthorize%3Fclient_id%3Dpulse',
+        'account_return_url' => '/authorize?client_id=pulse',
+        'account_return_label' => 'Back to sign in',
+        'account_clients' => [[
+            'display_name' => 'Local Pulse',
+            'icon' => 'https://pulse.test/icon.svg',
+            'initial' => 'L',
+            'connected_label' => 'Connected since Jul 3, 2026',
+            'last_used_label' => 'Last used Jul 28, 2026',
+            'shared_data' => ['Sorkos account ID', 'Email address'],
+            'deletion_url' => 'https://pulse.test/account/delete',
+            'deletion_label' => 'Open account deletion in Local Pulse',
+        ]],
+    ]);
+
+    expect($html)->toContain('Connected since Jul 3, 2026')
+        ->and($html)->toContain('Last used Jul 28, 2026')
+        ->and($html)->toContain('src="https://pulse.test/icon.svg"')
+        ->and($html)->toContain('<details class="account-client">')
+        ->and($html)->toContain('<summary class="account-client-summary">')
+        ->and($html)->toContain('account-client-indicator')
+        ->and($html)->toContain('Email address')
+        ->and($html)->not->toContain('verification status')
+        ->and($html)->not->toContain('This action is disabled.')
+        ->and($html)->toContain('href="https://pulse.test/account/delete"')
+        ->and($html)->toContain('Open account deletion in Local Pulse')
+        ->and($html)->toContain('href="/authorize?client_id=pulse"')
+        ->and($html)->toContain('Back to sign in')
+        ->and($html)->toContain('action="/account/display-name?return_to=%2Fauthorize%3Fclient_id%3Dpulse"')
+        ->and($html)->not->toContain('href="https://pulse.test"');
+});
+
 it('renders account actions and shared interaction feedback hooks', function (): void {
     $html = $this->renderView('home.html', [
         'title' => 'Sorkos Login',
@@ -114,7 +163,68 @@ it('renders account actions and shared interaction feedback hooks', function ():
     expect($html)->toContain('data-transition-to-standard')
         ->and($html)->toContain('method="post" action="/logout"')
         ->and($html)->toContain('Log out')
-        ->and($html)->toContain('/js/app.js?v=20260726-pending-motion');
+        ->and($html)->toContain('/js/app.js?v=20260728-client-configuration');
+});
+
+it('renders supported branding and settings as dynamic admin configuration entries', function (): void {
+    $service = new App\Services\ClientConfigurationService();
+    $client = [
+        'id' => 7,
+        'display_name' => 'Local Pulse',
+        'branding_json' => json_encode(['icon' => '/img/pulse.svg']),
+        'settings_json' => json_encode(['response_types' => ['code']]),
+    ];
+    $html = $this->renderView('admin_client_detail.html', [
+        'title' => 'Admin Client',
+        'html_lang' => 'en',
+        'active_nav' => 'admin',
+        'client' => $client + [
+            'name' => 'local-pulse',
+            'client_id' => 'local-pulse',
+            'domain' => 'pulse.test',
+            'is_active' => 1,
+            'is_confidential' => 1,
+            'client_secret_hash' => 'hash',
+            'created_at' => '2026-07-01 12:00:00',
+            'updated_at' => '2026-07-28 12:00:00',
+            'default_language' => 'en',
+            'allowed_languages' => 'en,de',
+            'enabled_providers' => 'email',
+        ],
+        'redirect_uris' => [],
+        'configuration_groups' => $service->groups($client),
+    ]);
+
+    expect($html)->toContain('Icon URL')
+        ->and($html)->toContain('/img/pulse.svg')
+        ->and($html)->toContain('Account deletion URL')
+        ->and($html)->toContain('data-configuration-select')
+        ->and($html)->toContain('Add entry')
+        ->and($html)->not->toContain('Raw Configuration')
+        ->and($html)->not->toContain('Images used to identify this client')
+        ->and($html)->not->toContain('Optional behavior and project destinations')
+        ->and($html)->not->toContain('All supported entries are configured');
+});
+
+it('renders the connected user count in the admin clients table', function (): void {
+    $html = $this->renderView('admin_clients.html', [
+        'title' => 'Admin Clients',
+        'html_lang' => 'en',
+        'active_nav' => 'admin',
+        'clients' => [[
+            'id' => 7,
+            'display_name' => 'Local Pulse',
+            'client_id' => 'local-pulse',
+            'domain' => 'pulse.test',
+            'enabled_providers' => 'email',
+            'user_count' => 3,
+            'is_active' => 1,
+        ]],
+    ]);
+
+    expect($html)->toContain('<th>Users</th>')
+        ->and($html)->toContain('<td>3</td>')
+        ->and($html)->not->toContain('<th>Redirects</th>');
 });
 
 it('renders a safe return to the authorization flow on static information pages', function (): void {

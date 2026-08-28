@@ -10,8 +10,19 @@ it('documents the implemented OAuth and session endpoints', function (): void {
             '/oauth/email',
             '/oauth/email/verify',
             '/token',
+            '/client/connections/revoke',
             '/logout',
         ]);
+});
+
+it('documents authenticated idempotent client-connection revocation', function (): void {
+    $document = json_decode(file_get_contents(dirname(__DIR__, 2) . '/app/openapi.json'), true);
+    $operation = $document['paths']['/client/connections/revoke']['post'];
+    $request = $document['components']['schemas']['ConnectionRevocationRequest'];
+
+    expect($operation['responses'])->toHaveKeys(['204', '400', '401'])
+        ->and($request['required'])->toBe(['client_id', 'client_secret', 'user_id'])
+        ->and($request['properties']['user_id']['maxLength'])->toBe(64);
 });
 
 it('keeps the token contract aligned with the implemented normalized user payload', function (): void {

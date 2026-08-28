@@ -113,6 +113,27 @@
         }, 220);
     });
 
+    function syncConfigurationInput(select) {
+        var form = select.closest('form');
+        var input = form ? form.querySelector('[data-configuration-value]') : null;
+        var option = select.options[select.selectedIndex];
+
+        if (!input || !option) {
+            return;
+        }
+
+        input.type = option.dataset.inputType || 'text';
+        input.placeholder = option.dataset.placeholder || '';
+    }
+
+    Array.prototype.forEach.call(document.querySelectorAll('[data-configuration-select]'), syncConfigurationInput);
+
+    document.addEventListener('change', function (event) {
+        if (event.target.matches('[data-configuration-select]')) {
+            syncConfigurationInput(event.target);
+        }
+    });
+
     window.addEventListener('pageshow', function (event) {
         if (!event.persisted) {
             return;

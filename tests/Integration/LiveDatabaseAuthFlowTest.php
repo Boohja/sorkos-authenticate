@@ -1,9 +1,11 @@
 <?php
 
 use App\Services\AuthorizationCodeService;
+use App\Services\ClientConnectionService;
 use App\Services\ClientService;
 use App\Services\Db;
 use App\Services\EmailAuthService;
+use App\Controllers\ApiController;
 
 beforeEach(function (): void {
     if (getenv('SORKOS_LIVE_DB_TESTS') !== '1') {
@@ -11,6 +13,10 @@ beforeEach(function (): void {
     }
 
     $this->config = require dirname(__DIR__, 2) . '/app/config/config.php';
+
+    if (!empty($this->config['app']['timezone'])) {
+        date_default_timezone_set((string) $this->config['app']['timezone']);
+    }
 
     if (empty($this->config['db']['enabled'])) {
         $this->markTestSkipped('Database integration tests require db.enabled=true.');
@@ -59,6 +65,7 @@ it('validates an authorize request and redeems an authorization code exactly onc
     ]);
 
     $redeemed = $codes->redeem($code, $clientPk, $this->redirectUri);
+    $connection = liveDbFindConnection($this->pdo, $userId, $clientPk);
 
     expect($redeemed)->toMatchArray([
         'id' => $this->publicId,
@@ -67,8 +74,40 @@ it('validates an authorize request and redeems an authorization code exactly onc
         'display_name' => 'Pest Test User',
         'preferred_language' => 'en',
     ])
+        ->and($connection['scope'])->toBe('profile email')
+        ->and($connection['connected_at'])->not->toBeEmpty()
+        ->and($connection['last_used_at'])->toBe($connection['connected_at'])
         ->and($codes->redeem($code, $clientPk, $this->redirectUri))->toBeNull()
         ->and($codes->redeem($code, $clientPk, $this->redirectUri . '/wrong'))->toBeNull();
+
+    (new ClientConnectionService($this->db))->revokeForClient($clientPk, $this->publicId);
+
+    expect(liveDbFindConnection($this->pdo, $userId, $clientPk))->toBe([]);
+});
+
+it('returns and records only data covered by the granted scopes', function (): void {
+    $clientPk = liveDbCreateClient($this->pdo, $this->marker, $this->clientId, $this->redirectUri);
+    $userId = liveDbCreateUser($this->pdo, $this->marker, $this->publicId, $this->email);
+    $codes = new AuthorizationCodeService($this->db);
+    $code = $codes->issue([
+        'client_pk' => $clientPk,
+        'redirect_uri' => $this->redirectUri,
+        'scope' => 'email',
+    ], [
+        'id' => $userId,
+    ]);
+
+    $redeemed = $codes->redeem($code, $clientPk, $this->redirectUri);
+    $connection = liveDbFindConnection($this->pdo, $userId, $clientPk);
+
+    expect($redeemed)->toMatchArray([
+        'id' => $this->publicId,
+        'email' => $this->email,
+        'email_verified' => true,
+        'display_name' => null,
+        'avatar_url' => null,
+        'preferred_language' => null,
+    ])->and($connection['scope'])->toBe('email');
 });
 
 it('creates hashed email login codes, verifies them once, and upserts email identities', function (): void {
@@ -101,6 +140,44 @@ it('creates hashed email login codes, verifies them once, and upserts email iden
         ->and((bool) $user['email_verified'])->toBeTrue()
         ->and($sameUser['id'])->toBe($user['id'])
         ->and($sameUser['preferred_language'])->toBe('de');
+});
+
+it('lets an authenticated confidential client idempotently revoke only its user connection', function (): void {
+    $clientPk = liveDbCreateClient($this->pdo, $this->marker, $this->clientId, $this->redirectUri);
+    $userId = liveDbCreateUser($this->pdo, $this->marker, $this->publicId, $this->email);
+    (new ClientConnectionService($this->db))->recordSuccessfulLogin($userId, $clientPk, 'profile email');
+    $f3 = $this->app();
+    $f3->set('DB', $this->db);
+    $f3->set('POST', [
+        'client_id' => $this->clientId,
+        'client_secret' => 'wrong-secret',
+        'user_id' => $this->publicId,
+    ]);
+
+    ob_start();
+    (new ApiController())->revokeClientConnection($f3);
+    $invalidBody = (string) ob_get_clean();
+
+    expect(http_response_code())->toBe(401)
+        ->and(json_decode($invalidBody, true))->toBe(['error' => 'invalid_client'])
+        ->and(liveDbFindConnection($this->pdo, $userId, $clientPk))->not->toBe([]);
+
+    http_response_code(200);
+    $f3->set('POST.client_secret', 'pest-secret-' . $this->marker);
+    ob_start();
+    (new ApiController())->revokeClientConnection($f3);
+    $successBody = (string) ob_get_clean();
+
+    expect(http_response_code())->toBe(204)
+        ->and($successBody)->toBe('')
+        ->and(liveDbFindConnection($this->pdo, $userId, $clientPk))->toBe([]);
+
+    http_response_code(200);
+    ob_start();
+    (new ApiController())->revokeClientConnection($f3);
+    ob_end_clean();
+
+    expect(http_response_code())->toBe(204);
 });
 
 function liveDbCreateClient(PDO $pdo, string $marker, string $clientId, string $redirectUri): int
@@ -183,6 +260,20 @@ function liveDbFindEmailCode(PDO $pdo, int $id): array
     return is_array($row) ? $row : [];
 }
 
+function liveDbFindConnection(PDO $pdo, int $userId, int $clientId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT * FROM auth_user_client_connections WHERE user_id = :user_id AND client_id = :client_id LIMIT 1'
+    );
+    $stmt->execute([
+        'user_id' => $userId,
+        'client_id' => $clientId,
+    ]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return is_array($row) ? $row : [];
+}
+
 function liveDbCleanup(PDO $pdo, string $marker): void
 {
     $clientLike = $marker . '%';
@@ -198,8 +289,8 @@ function liveDbCleanup(PDO $pdo, string $marker): void
     liveDbDeleteByIds($pdo, 'auth_sessions', 'user_id', $userIds);
     liveDbDeleteByIds($pdo, 'auth_authorization_codes', 'client_id', $clientIds);
     liveDbDeleteByIds($pdo, 'auth_authorization_codes', 'user_id', $userIds);
-    liveDbDeleteByIds($pdo, 'auth_user_client_consents', 'client_id', $clientIds);
-    liveDbDeleteByIds($pdo, 'auth_user_client_consents', 'user_id', $userIds);
+    liveDbDeleteByIds($pdo, 'auth_user_client_connections', 'client_id', $clientIds);
+    liveDbDeleteByIds($pdo, 'auth_user_client_connections', 'user_id', $userIds);
     liveDbDeleteByIds($pdo, 'auth_email_login_codes', 'client_id', $clientIds);
 
     $stmt = $pdo->prepare('DELETE FROM auth_email_login_codes WHERE email = :email');

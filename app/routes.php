@@ -64,6 +64,10 @@ $f3->route('POST /token', function (Base $f3): void {
     (new App\Controllers\ApiController())->token($f3);
 });
 
+$f3->route('POST /client/connections/revoke', function (Base $f3): void {
+    (new App\Controllers\ApiController())->revokeClientConnection($f3);
+});
+
 $f3->route(['GET /logout', 'POST /logout'], function (Base $f3): void {
     (new App\Controllers\ApiController())->logout($f3);
 });
@@ -126,4 +130,12 @@ $f3->route('POST /admin/clients/@id/redirect-uris', function (Base $f3): void {
 
 $f3->route('POST /admin/clients/@id/redirect-uris/@redirect_id/delete', function (Base $f3): void {
     (new App\Controllers\AdminController())->deleteRedirectUri($f3);
+});
+
+$f3->route('POST /admin/clients/@id/configuration/@group', function (Base $f3): void {
+    (new App\Controllers\AdminController())->addConfigurationEntry($f3);
+});
+
+$f3->route('POST /admin/clients/@id/configuration/@group/@key/delete', function (Base $f3): void {
+    (new App\Controllers\AdminController())->deleteConfigurationEntry($f3);
 });

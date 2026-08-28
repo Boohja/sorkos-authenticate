@@ -125,7 +125,7 @@ $code = $_GET['code'] ?? '';</pre>
 
     <div class="endpoint">
         <h2>5. Client Exchanges The Code Server-Side</h2>
-        <p>The client validates the returned <code>state</code>, then posts the authorization code to <a href="/docs/api#/Token/post_token"><code>/token</code></a> from its server. The client secret authenticates the project, and the one-time code identifies the Sorkos user who completed the browser flow. If valid, Sorkos Login returns normalized user information.</p>
+        <p>The client validates the returned <code>state</code>, then posts the authorization code to <a href="/docs/api#/Token/post_token"><code>/token</code></a> from its server. The client secret authenticates the project, and the one-time code identifies the Sorkos user who completed the browser flow. If valid, Sorkos Login returns normalized user information and creates or refreshes the user-client connection with the approved scope and latest-use timestamp.</p>
         <details class="code-example">
             <summary>Token exchange examples</summary>
             <div class="code-tabs">
@@ -185,6 +185,16 @@ const tokenResult = await response.json();</pre>
         <pre>{{ @request_origin }}/logout?client_id=example-id&amp;redirect_uri=https%3A%2F%2Fclient.example%2Fauth%2Fcallback</pre>
     </div>
 
-    <p class="notice">Current implementation status: <code>/authorize</code> validation, the provider-selection screen, first-party E-Mail login, authorization-code issuing, <code>/token</code>, and <code>/logout</code> exist. External OAuth providers are still upcoming implementation steps.</p>
+    <div class="endpoint">
+        <h2>8. Client Completes Project Account Deletion</h2>
+        <p>A client may set <code>account_deletion_url</code> in its <code>settings_json</code>. The account page then links to that project's regular deletion page without adding parameters; authentication and deletion remain entirely under the project's control.</p>
+        <p>After the project has deleted its own user account and data, its server posts the public Sorkos user ID to <a href="/docs/api#/Connections/post_client_connections_revoke"><code>/client/connections/revoke</code></a>. The client authenticates with its own ID and secret. The idempotent request removes only this project connection and never deletes the central Sorkos account.</p>
+        <pre>POST {{ @request_origin }}/client/connections/revoke
+Content-Type: application/x-www-form-urlencoded
+
+client_id=example-id&amp;client_secret=example-secret&amp;user_id=usr_example</pre>
+    </div>
+
+    <p class="notice">Current implementation status: <code>/authorize</code> validation, the provider-selection screen, first-party E-Mail login, authorization-code issuing, <code>/token</code>, client-connection revocation, and <code>/logout</code> exist. External OAuth providers are still upcoming implementation steps.</p>
 </section>
 <include href="_layout_end.html" />

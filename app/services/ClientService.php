@@ -94,12 +94,7 @@ class ClientService
             return false;
         }
 
-        $settings = [];
-
-        if (!empty($client['settings_json'])) {
-            $decoded = json_decode((string) $client['settings_json'], true);
-            $settings = is_array($decoded) ? $decoded : [];
-        }
+        $settings = $this->settings($client);
 
         $allowed = $settings['response_types'] ?? ['code'];
 
@@ -108,6 +103,19 @@ class ClientService
         }
 
         return in_array($responseType, $allowed, true);
+    }
+
+    public function accountDeletionUrl(array $client): string
+    {
+        $url = trim((string) ($this->settings($client)['account_deletion_url'] ?? ''));
+
+        if ($url === '' || filter_var($url, FILTER_VALIDATE_URL) === false) {
+            return '';
+        }
+
+        $scheme = strtolower((string) (parse_url($url, PHP_URL_SCHEME) ?? ''));
+
+        return in_array($scheme, ['http', 'https'], true) ? $url : '';
     }
 
     public static function csvToList(string $value): array
@@ -119,6 +127,17 @@ class ClientService
     public static function quoteSqlString(string $value): string
     {
         return "'" . str_replace("'", "''", $value) . "'";
+    }
+
+    private function settings(array $client): array
+    {
+        if (empty($client['settings_json'])) {
+            return [];
+        }
+
+        $decoded = json_decode((string) $client['settings_json'], true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function invalid(string $error): array

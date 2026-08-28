@@ -32,7 +32,7 @@ class AuthController
             'client_pk' => $client['id'],
             'redirect_uri' => (string) $f3->get('GET.redirect_uri'),
             'response_type' => (string) $f3->get('GET.response_type'),
-            'scope' => (string) ($f3->get('GET.scope') ?? ''),
+            'scope' => trim((string) ($f3->get('GET.scope') ?? '')) ?: 'profile email',
             'state' => (string) $f3->get('GET.state'),
             'prompt' => strtolower(trim((string) ($f3->get('GET.prompt') ?? ''))),
             'lang' => $i18n->language(),

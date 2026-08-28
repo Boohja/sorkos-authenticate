@@ -2,18 +2,20 @@
 
 declare(strict_types=1);
 
-function mergeConfig(array $base, array $override): array
-{
-    foreach ($override as $key => $value) {
-        if (is_array($value) && isset($base[$key]) && is_array($base[$key])) {
-            $base[$key] = mergeConfig($base[$key], $value);
-            continue;
+if (!function_exists('mergeConfig')) {
+    function mergeConfig(array $base, array $override): array
+    {
+        foreach ($override as $key => $value) {
+            if (is_array($value) && isset($base[$key]) && is_array($base[$key])) {
+                $base[$key] = mergeConfig($base[$key], $value);
+                continue;
+            }
+
+            $base[$key] = $value;
         }
 
-        $base[$key] = $value;
+        return $base;
     }
-
-    return $base;
 }
 
 $config = [

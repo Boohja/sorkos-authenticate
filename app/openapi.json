@@ -3,7 +3,7 @@
   "info": {
     "title": "Sorkos Login API",
     "version": "1.0.0",
-    "description": "Endpoint contract for client projects integrating with Sorkos Login. This system is for registered Sorkos projects only and is not intended for public self-service use.\n\nImplementation status: /authorize validation, the provider-selection screen, first-party E-Mail login, authorization-code issuing, /token, and /logout exist. External OAuth providers are planned but not implemented yet."
+    "description": "Endpoint contract for client projects integrating with Sorkos Login. This system is for registered Sorkos projects only and is not intended for public self-service use.\n\nImplementation status: /authorize validation, the provider-selection screen, first-party E-Mail login, authorization-code issuing, /token, client-connection revocation, and /logout exist. External OAuth providers are planned but not implemented yet."
   },
   "servers": [
     {
@@ -23,6 +23,10 @@
     {
       "name": "Token",
       "description": "Server-side code exchange endpoints."
+    },
+    {
+      "name": "Connections",
+      "description": "Server-to-server lifecycle operations for a client's connection to a Sorkos identity."
     },
     {
       "name": "Session",
@@ -82,7 +86,7 @@
             "name": "scope",
             "in": "query",
             "required": false,
-            "description": "Requested profile fields. Version 1 expects basic profile/email scopes only.",
+            "description": "Requested user fields. `email` shares the email address and verification status; `profile` shares display name, avatar URL, and preferred language. The stable public user ID is always returned. Defaults to `profile email` when omitted.",
             "schema": {
               "type": "string",
               "example": "profile email"
@@ -412,7 +416,7 @@
       "post": {
         "tags": ["Token"],
         "summary": "Exchange authorization code",
-        "description": "Exchanges a short-lived authorization code for normalized user information. This request is made server-side by the client project. The client secret authenticates the client; the authorization code identifies the user session that completed /authorize.",
+        "description": "Exchanges a short-lived authorization code for normalized user information. This request is made server-side by the client project. The client secret authenticates the client; the authorization code identifies the user session that completed /authorize. A successful exchange creates or refreshes the user's connection to this client and records the requested scope.",
         "requestBody": {
           "required": true,
           "content": {
@@ -441,6 +445,53 @@
           },
           "400": {
             "description": "Invalid request, code, grant type, client credentials, or redirect URI.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/client/connections/revoke": {
+      "post": {
+        "tags": ["Connections"],
+        "summary": "Revoke a user's connection to the calling client",
+        "description": "Called server-to-server by a confidential client after that project has deleted the user's project account. The authenticated client can remove only its own connection. The operation is idempotent and does not delete the central Sorkos account.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionRevocationRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionRevocationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Connection absent after the request, including when it had already been removed."
+          },
+          "400": {
+            "description": "Missing or invalid request fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unknown, public, or incorrectly authenticated client.",
             "content": {
               "application/json": {
                 "schema": {
@@ -537,6 +588,28 @@
         "properties": {
           "user": {
             "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "ConnectionRevocationRequest": {
+        "type": "object",
+        "required": ["client_id", "client_secret", "user_id"],
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "The calling project's registered client identifier.",
+            "example": "example-id"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "The confidential client's server-side secret.",
+            "example": "example-secret"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The stable public Sorkos user ID previously returned as user.id by /token.",
+            "maxLength": 64,
+            "example": "usr_example"
           }
         }
       },

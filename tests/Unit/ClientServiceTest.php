@@ -45,3 +45,17 @@ it('validates confidential client secrets while allowing public clients', functi
             'client_secret_hash' => '',
         ], 'correct-secret'))->toBeFalse();
 });
+
+it('returns only safe absolute account deletion URLs from client settings', function (): void {
+    $service = new ClientService(new Db([]));
+
+    expect($service->accountDeletionUrl([
+        'settings_json' => json_encode(['account_deletion_url' => 'https://pulse.test/account/delete']),
+    ]))->toBe('https://pulse.test/account/delete')
+        ->and($service->accountDeletionUrl([
+            'settings_json' => json_encode(['account_deletion_url' => 'javascript:alert(1)']),
+        ]))->toBe('')
+        ->and($service->accountDeletionUrl([
+            'settings_json' => '{invalid',
+        ]))->toBe('');
+});

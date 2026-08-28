@@ -18,7 +18,7 @@
                     <th>Client ID</th>
                     <th>Domain</th>
                     <th>Providers</th>
-                    <th>Redirects</th>
+                    <th>Users</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -29,7 +29,7 @@
                         <td><code>{{ @client.client_id }}</code></td>
                         <td>{{ @client.domain ?: '-' }}</td>
                         <td>{{ @client.enabled_providers }}</td>
-                        <td>{{ @client.redirect_uri_count }}</td>
+                        <td>{{ @client.user_count }}</td>
                         <td>{{ @client.is_active ? 'Active' : 'Inactive' }}</td>
                     </tr>
                 </repeat>

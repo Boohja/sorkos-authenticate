@@ -74,10 +74,46 @@
         <button class="button primary" type="submit">Add Redirect URI</button>
     </form>
 
-    <h2>Raw Configuration</h2>
-    <dl>
-        <dt>Branding JSON</dt><dd><pre>{{ @client.branding_json ?: '{}' }}</pre></dd>
-        <dt>Settings JSON</dt><dd><pre>{{ @client.settings_json ?: '{}' }}</pre></dd>
-    </dl>
+    <div class="configuration-grid">
+        <repeat group="{{ @configuration_groups }}" value="{{ @configuration_group }}">
+            <section class="configuration-section">
+                <h2>{{ @configuration_group.title }}</h2>
+
+                <check if="{{ count(@configuration_group.entries) }}">
+                    <div class="configuration-entries">
+                        <repeat group="{{ @configuration_group.entries }}" value="{{ @configuration_entry }}">
+                            <div class="configuration-entry">
+                                <div>
+                                    <strong>{{ @configuration_entry.label }}</strong>
+                                    <code>{{ @configuration_entry.value }}</code>
+                                </div>
+                                <form method="post" action="/admin/clients/{{ @client.id }}/configuration/{{ @configuration_group.key }}/{{ urlencode(@configuration_entry.key) }}/delete">
+                                    <button class="button danger-button" type="submit">Remove</button>
+                                </form>
+                            </div>
+                        </repeat>
+                    </div>
+                </check>
+
+                <check if="{{ count(@configuration_group.available) }}">
+                    <form class="configuration-add-form" method="post" action="/admin/clients/{{ @client.id }}/configuration/{{ @configuration_group.key }}">
+                        <div>
+                            <label for="{{ @configuration_group.key }}-key">Entry</label>
+                            <select id="{{ @configuration_group.key }}-key" name="config_key" data-configuration-select>
+                                <repeat group="{{ @configuration_group.available }}" value="{{ @available_entry }}">
+                                    <option value="{{ @available_entry.key }}" data-input-type="{{ @available_entry.input_type }}" data-placeholder="{{ @available_entry.placeholder }}">{{ @available_entry.label }}</option>
+                                </repeat>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="{{ @configuration_group.key }}-value">Value</label>
+                            <input id="{{ @configuration_group.key }}-value" name="config_value" type="text" data-configuration-value required>
+                        </div>
+                        <button class="button primary" type="submit">Add entry</button>
+                    </form>
+                </check>
+            </section>
+        </repeat>
+    </div>
 </section>
 <include href="_layout_end.html" />
