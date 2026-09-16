@@ -181,7 +181,8 @@ const tokenResult = await response.json();</pre>
 
     <div class="endpoint">
         <h2>7. Client Handles Logout</h2>
-        <p>The client clears its own local session first, then redirects the browser to <a href="/docs/api#/Session/get_logout"><code>/logout</code></a> to clear the central Sorkos Login cookie. A supplied <code>redirect_uri</code> is only used when it exactly matches a registered URI for the supplied <code>client_id</code>.</p>
+        <p><strong>Default product logout:</strong> the client destroys only its own local product session. It must not call or redirect to the Sorkos Login <code>/logout</code> endpoint. The central Sorkos Login session remains active so the user can continue using SSO in this and other products.</p>
+        <p><strong>Special case — explicit Sorkos logout:</strong> only when the product deliberately offers an action that signs the user out of Sorkos itself should it clear its local session and then redirect the browser to <a href="/docs/api#/Session/get_logout"><code>/logout</code></a>. Do not use this endpoint for a normal product logout. A supplied <code>redirect_uri</code> is only used when it exactly matches a registered URI for the supplied <code>client_id</code>.</p>
         <pre>{{ @request_origin }}/logout?client_id=example-id&amp;redirect_uri=https%3A%2F%2Fclient.example%2Fauth%2Fcallback</pre>
     </div>
 

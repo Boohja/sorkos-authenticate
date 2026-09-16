@@ -506,8 +506,8 @@
     "/logout": {
       "get": {
         "tags": ["Session"],
-        "summary": "Destroy central session",
-        "description": "Destroys the central Sorkos Login session. Client projects still handle their own local logout separately. If client_id and redirect_uri are supplied, redirect_uri must exactly match a registered URI for that client.",
+        "summary": "Explicitly destroy the central Sorkos session",
+        "description": "Special-case endpoint for an explicit Sorkos logout. A normal product logout must only destroy the client's own local session and must not call or redirect to this endpoint. Calling this endpoint destroys the central Sorkos Login session while sessions in other client projects remain active. If client_id and redirect_uri are supplied, redirect_uri must exactly match a registered URI for that client.",
         "parameters": [
           {
             "name": "client_id",

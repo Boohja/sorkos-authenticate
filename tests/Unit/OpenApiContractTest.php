@@ -15,6 +15,15 @@ it('documents the implemented OAuth and session endpoints', function (): void {
         ]);
 });
 
+it('documents central logout as an explicit special case rather than the product default', function (): void {
+    $document = json_decode(file_get_contents(dirname(__DIR__, 2) . '/app/openapi.json'), true);
+    $logout = $document['paths']['/logout']['get'];
+
+    expect($logout['summary'])->toContain('Explicitly')
+        ->and($logout['description'])->toContain('A normal product logout must only destroy')
+        ->and($logout['description'])->toContain('must not call or redirect to this endpoint');
+});
+
 it('documents authenticated idempotent client-connection revocation', function (): void {
     $document = json_decode(file_get_contents(dirname(__DIR__, 2) . '/app/openapi.json'), true);
     $operation = $document['paths']['/client/connections/revoke']['post'];

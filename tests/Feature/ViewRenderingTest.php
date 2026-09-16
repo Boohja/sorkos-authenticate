@@ -166,6 +166,21 @@ it('renders account actions and shared interaction feedback hooks', function ():
         ->and($html)->toContain('/js/app.js?v=20260728-client-configuration');
 });
 
+it('documents local product logout as the default and central logout as a special case', function (): void {
+    $html = $this->renderView('docs_workflow.html', [
+        'title' => 'Workflow - Sorkos Login',
+        'html_lang' => 'en',
+        'active_nav' => 'docs',
+        'request_origin' => 'https://auth.example.test',
+    ]);
+
+    expect($html)->toContain('Default product logout:')
+        ->and($html)->toContain('destroys only its own local product session')
+        ->and($html)->toContain('must not call or redirect to the Sorkos Login')
+        ->and($html)->toContain('Special case — explicit Sorkos logout:')
+        ->and($html)->toContain('Do not use this endpoint for a normal product logout.');
+});
+
 it('renders supported branding and settings as dynamic admin configuration entries', function (): void {
     $service = new App\Services\ClientConfigurationService();
     $client = [
