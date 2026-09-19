@@ -55,33 +55,20 @@
                         <true>
                             <div class="account-client-list">
                                 <repeat group="{{ @account_clients }}" value="{{ @client }}">
-                                    <details class="account-client">
-                                        <summary class="account-client-summary">
-                                            <check if="{{ @client.icon }}">
-                                                <true><img src="{{ @client.icon }}" alt=""></true>
-                                                <false><span class="account-client-icon-fallback" aria-hidden="true">{{ @client.initial }}</span></false>
-                                            </check>
-                                            <div>
-                                                <strong>{{ @client.display_name }}</strong>
-                                                <check if="{{ @client.connected_label }}"><small>{{ @client.connected_label }}</small></check>
-                                                <check if="{{ @client.last_used_label }}"><small>{{ @client.last_used_label }}</small></check>
-                                            </div>
-                                            <span class="account-client-indicator" aria-hidden="true"></span>
-                                        </summary>
-                                        <div class="account-client-details">
-                                            <div class="account-client-access">
-                                                <span>{{ @account.shared_data }}</span>
-                                                <ul>
-                                                    <repeat group="{{ @client.shared_data }}" value="{{ @data_label }}">
-                                                        <li>{{ @data_label }}</li>
-                                                    </repeat>
-                                                </ul>
-                                            </div>
-                                            <check if="{{ @client.deletion_url }}">
-                                                <a class="button account-client-delete-link" href="{{ @client.deletion_url }}">{{ @client.deletion_label }}</a>
-                                            </check>
-                                        </div>
-                                    </details>
+                                    <a class="account-client-row" href="{{ @client.detail_url }}">
+                                        <check if="{{ @client.icon }}">
+                                            <true><img src="{{ @client.icon }}" alt=""></true>
+                                            <false><span class="account-client-icon-fallback" aria-hidden="true">{{ @client.initial }}</span></false>
+                                        </check>
+                                        <span class="account-client-copy">
+                                            <strong>{{ @client.display_name }}</strong>
+                                            <check if="{{ @client.connected_label }}"><small>{{ @client.connected_label }}</small></check>
+                                            <check if="{{ @client.last_used_label }}"><small>{{ @client.last_used_label }}</small></check>
+                                        </span>
+                                        <svg class="account-client-arrow" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                                            <path d="m7.5 4.75 5.25 5.25-5.25 5.25" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/>
+                                        </svg>
+                                    </a>
                                 </repeat>
                             </div>
                         </true>

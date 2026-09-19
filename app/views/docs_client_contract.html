@@ -1,0 +1,142 @@
+<include href="_layout_start.html" />
+<section class="panel wide">
+    <p><a href="/docs/">Back to documentation</a></p>
+    <h1>Implement the Sorkos client endpoints</h1>
+    <p>Use this contract when adding Sorkos Login support to a project. Your client must implement the login callback. It may also expose endpoints that let Sorkos Auth revoke all local sessions or delete a local user.</p>
+
+    <p class="notice"><strong>No handshake is required.</strong> For direct server requests, derive a signing key from the client secret already issued to your project. Sorkos Auth will not call a client endpoint without a valid signature.</p>
+
+    <div class="endpoint">
+        <h2>Verify direct requests from Sorkos Auth</h2>
+        <p>Apply this verification to every machine endpoint described below. Derive the signing key as a lowercase hexadecimal string:</p>
+        <pre>signing_key = SHA-256(client_secret)</pre>
+        <p>Each direct request from Sorkos Auth contains these headers:</p>
+        <pre>X-Sorkos-Client-Id: example-id
+X-Sorkos-Timestamp: 1789570000
+X-Sorkos-Nonce: 48f8c4e9d7024df4a251851f214bdc88
+X-Sorkos-Signature: v1=&lt;hex-hmac-sha256&gt;</pre>
+        <p>Recreate the HMAC input as UTF-8 text with exactly these newline-separated fields:</p>
+        <pre>v1
+POST
+/auth/sorkos/sessions/revoke
+1789570000
+48f8c4e9d7024df4a251851f214bdc88
+&lt;lowercase SHA-256 hex of the exact request body&gt;</pre>
+        <p>Compute <code>v1=HMAC-SHA256(signing_key, canonical_input)</code>. Use the 64-character hexadecimal signing key exactly as written; do not hex-decode it before using it as the HMAC key.</p>
+        <details class="code-example">
+            <summary>Known-answer test vector</summary>
+            <pre>client_secret = correct horse battery staple
+signing_key = c4bbcb1fbec99d65bf59d85c8cb62ee2db963f0fe106f483d9afa73bd4e39a8a
+method = POST
+request_target = /auth/sorkos/sessions/revoke?source=account
+timestamp = 1789570000
+nonce = 48f8c4e9d7024df4a251851f214bdc88
+body = {"event":"logout_all","user_id":"usr_example"}
+signature = v1=5c748e4c35f4dabfa59fd6ed7dffd9e6b4c06f65f8720f27d4a758fae5e4e812</pre>
+        </details>
+        <h3>Reject the request unless all checks pass</h3>
+        <ul>
+            <li>The timestamp differs from your server time by no more than 300 seconds.</li>
+            <li>Atomically reject a nonce that was accepted before, then store it until at least <code>signed_timestamp + 300 seconds</code>. With maximum positive clock skew, this can be almost 10 minutes from receipt.</li>
+            <li>The body hash was calculated from the exact raw bytes received, before JSON decoding.</li>
+            <li>The signed request target equals the URL path plus its query string, if present.</li>
+            <li>The signature matches using a constant-time comparison such as <code>hash_equals</code>.</li>
+            <li><code>X-Sorkos-Client-Id</code> is your project's assigned client ID.</li>
+        </ul>
+        <p>Expose production endpoints only over HTTPS.</p>
+        <details class="code-example">
+            <summary>PHP verification example</summary>
+            <div class="code-tabs">
+                <div class="tab-panel php-panel" style="display:block">
+                    <pre>&lt;?php
+$body = file_get_contents('php://input');
+$timestamp = $_SERVER['HTTP_X_SORKOS_TIMESTAMP'] ?? '';
+$nonce = $_SERVER['HTTP_X_SORKOS_NONCE'] ?? '';
+$provided = $_SERVER['HTTP_X_SORKOS_SIGNATURE'] ?? '';
+$clientId = $_SERVER['HTTP_X_SORKOS_CLIENT_ID'] ?? '';
+$requestTarget = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$query = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY);
+if ($query !== null &amp;&amp; $query !== '') {
+    $requestTarget .= '?' . $query;
+}
+
+if (
+    $clientId === ''
+    || !hash_equals($configuredClientId, $clientId)
+    || !ctype_digit($timestamp)
+    || abs(time() - (int) $timestamp) &gt; 300
+) {
+    http_response_code(401);
+    exit;
+}
+
+// Atomically reject a reused nonce, then retain it until at least (int) $timestamp + 300.
+$signingKey = hash('sha256', $configuredClientSecret);
+$canonical = implode("
+", [
+    'v1',
+    $_SERVER['REQUEST_METHOD'],
+    $requestTarget,
+    $timestamp,
+    $nonce,
+    hash('sha256', $body),
+]);
+$expected = 'v1=' . hash_hmac('sha256', $canonical, $signingKey);
+
+if (!hash_equals($expected, $provided)) {
+    http_response_code(401);
+    exit;
+}
+
+// Complete the atomic nonce check-and-store before processing the event.</pre>
+                </div>
+            </div>
+        </details>
+    </div>
+
+    <div class="endpoint">
+        <h2>1. Implement the login callback</h2>
+        <p><strong>Required.</strong> Expose an HTTPS endpoint that accepts the user's browser after authentication. The integration owner registers this endpoint's exact URL with Sorkos Auth.</p>
+        <pre>GET https://client.example/auth/callback?code=&lt;one-time-code&gt;&amp;state=&lt;original-state&gt;</pre>
+        <p>Sorkos Auth redirects the browser with either <code>code</code> and <code>state</code>, or <code>error=access_denied</code> and <code>state</code>. Your endpoint must verify <code>state</code> against the value stored before login, reject missing or mismatched values, and exchange the code from your server at <code>/token</code>.</p>
+        <p>The successful token exchange returns the normalized <code>user</code> object and an opaque <code>client_session_token</code>. Store that token with the local session you create. Do not expose the client secret or perform this exchange in browser code.</p>
+        <p>This endpoint receives browser navigation, not a direct Auth-to-client server request, so it does not receive HMAC headers. Its protection comes from exact redirect-URI matching, client-generated <code>state</code>, the short-lived single-use code, and the authenticated server-side token exchange.</p>
+    </div>
+
+    <div class="endpoint">
+        <h2>2. Check long-lived sessions when appropriate</h2>
+        <p>If your project uses long-lived local sessions, optionally check their status from your server at <a href="/docs/api"><code>POST /client/sessions/introspect</code></a>. Send the confidential client credentials together with the <code>client_session_token</code> stored for that local session:</p>
+        <pre>POST /client/sessions/introspect
+Content-Type: application/x-www-form-urlencoded
+
+client_id=example-id&amp;client_secret=example-secret&amp;client_session_token=cst_...</pre>
+        <p>The response is either <code>{"active":true}</code> or <code>{"active":false}</code>. On <code>false</code>, immediately destroy that local session and require a new login. Treat an unknown or revoked token exactly like any other inactive token.</p>
+        <p>Choose a check interval suitable for your product. A short positive-result cache, for example 5–15 minutes, avoids a network call on every request; check immediately before especially sensitive operations if needed. Fail closed only where your availability requirements permit it.</p>
+        <p>Do not tie the local session to the central Sorkos browser cookie. That browser session has its own lifetime and may expire or be logged out while the client session remains valid. Introspection becomes inactive after explicit client-session invalidation, client disconnection, user disablement, or client disablement.</p>
+        <p>The token is only an opaque lookup identifier, not a bearer credential: Sorkos also authenticates the confidential client ID and secret, and a client can introspect only its own tokens.</p>
+    </div>
+
+    <div class="endpoint">
+        <h2>3. Optionally implement session revocation</h2>
+        <p>Provide this endpoint if your project can terminate every client-owned session for a given Sorkos user. Once its exact HTTPS URL is supplied to Sorkos Auth, the account page can offer the user a project-wide “Log out on all devices” action.</p>
+        <p>Sorkos Auth invalidates its own grants first, then sends this signed request:</p>
+        <pre>POST /auth/sorkos/sessions/revoke
+Content-Type: application/json
+
+{"event":"logout_all","user_id":"usr_example"}</pre>
+        <p>Treat <code>user_id</code> as the public Sorkos user ID returned during login. Invalidate all local sessions belonging to that user and return any <code>2xx</code> status. The operation must be idempotent: a repeated valid request for the same user must also succeed safely.</p>
+    </div>
+
+    <div class="endpoint">
+        <h2>4. Implement user deletion when supported</h2>
+        <p>Provide this endpoint if your project participates in central account deletion. It must permanently remove the local account and personal data associated with the supplied public Sorkos user ID.</p>
+        <p>Sorkos Auth sends this signed request:</p>
+        <pre>POST /auth/sorkos/users/delete
+Content-Type: application/json
+
+{"event":"delete_user","user_id":"usr_example"}</pre>
+        <p>Make the operation idempotent and return <code>204 No Content</code> once the local user and their data are absent. Central invocation is not enabled yet; implementing this contract now makes the client ready for that workflow.</p>
+    </div>
+</section>
+<include href="_layout_end.html" />
+

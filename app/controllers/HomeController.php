@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Services\AdminSetupService;
 use App\Services\ClientService;
+use App\Services\ClientRequestSigner;
 use App\Services\Db;
 use App\Services\I18n;
 use App\Services\SessionService;
@@ -99,6 +100,133 @@ class HomeController
         $f3->set('account_display_name_action', $this->accountUrl($returnTo, true));
 
         echo \Template::instance()->render('account.html');
+    }
+
+    public function clientDetail(Base $f3, array $params): void
+    {
+        $db = $f3->get('DB');
+        $user = $this->currentUser($db);
+
+        if (!$db instanceof Db || $user === null) {
+            $f3->reroute('/account');
+            return;
+        }
+
+        $client = $this->clientForUser($db, (int) $user['id'], (int) ($params['id'] ?? 0));
+
+        if ($client === null) {
+            $f3->reroute('/account');
+            return;
+        }
+
+        $i18n = $this->accountI18n($f3, $user);
+        $clientService = new ClientService($db);
+        $sessionService = new SessionService($db);
+        $sessions = array_map(function (array $session) use ($i18n): array {
+            $description = trim((string) ($session['session_description'] ?? ''));
+            $session['description'] = $description !== '' ? $description : $i18n->t('account.session_unknown');
+            $session['created_label'] = $i18n->t('account.session_started', [
+                $this->dateTimeLabel((string) $session['created_at'], $i18n->language()),
+            ]);
+            $session['last_used_label'] = $i18n->t('account.session_last_used', [
+                $this->dateTimeLabel((string) $session['last_used_at'], $i18n->language()),
+            ]);
+            return $session;
+        }, $sessionService->sessionsForClient((int) $user['id'], (int) $client['id']));
+        $name = (string) $client['display_name'];
+        $connectedAt = (string) ($client['connected_at'] ?? '');
+        $lastUsedAt = (string) ($client['last_used_at'] ?? '');
+        $status = trim((string) ($f3->get('GET.sessions') ?? ''));
+
+        $f3->set('title', $name . ' - ' . $i18n->t('account.page_title'));
+        $f3->set('html_lang', $i18n->language());
+        $f3->set('active_nav', '');
+        $f3->set('layout_variant', '');
+        $f3->set('hide_split_header', false);
+        $f3->set('client_icon', '');
+        $f3->set('account_client', [
+            'id' => (int) $client['id'],
+            'display_name' => $name,
+            'domain' => (string) ($client['domain'] ?? ''),
+            'icon' => $this->clientBrandingUrl($client, 'icon'),
+            'initial' => $this->initial($name),
+            'connected_label' => $connectedAt !== ''
+                ? $i18n->t('account.connected_since', [$this->dateLabel($connectedAt, $i18n->language())])
+                : '',
+            'last_used_label' => $lastUsedAt !== ''
+                ? $i18n->t('account.last_used', [$this->dateLabel($lastUsedAt, $i18n->language())])
+                : '',
+            'shared_data' => $this->sharedDataLabels((string) ($client['scope'] ?? ''), $i18n),
+            'deletion_url' => $clientService->accountDeletionUrl($client),
+            'deletion_label' => $i18n->t('account.open_deletion', [$name]),
+            'has_remote_logout' => $clientService->sessionRevocationUrl($client) !== ''
+                && ClientRequestSigner::canSign($client),
+        ]);
+        $f3->set('account_client_sessions', $sessions);
+        $f3->set('account_client_status_key', match ($status) {
+            'one' => 'account.session_invalidated',
+            'all' => 'account.sessions_invalidated',
+            'remote' => 'account.remote_logout_complete',
+            'remote-failed' => 'account.remote_logout_failed',
+            default => '',
+        });
+
+        echo \Template::instance()->render('account_client.html');
+    }
+
+    public function revokeClientSession(Base $f3, array $params): void
+    {
+        $context = $this->clientActionContext($f3, $params);
+
+        if ($context === null) {
+            return;
+        }
+
+        [$user, $client, $sessions] = $context;
+        $sessions->revokeClientSession(
+            (int) $user['id'],
+            (int) $client['id'],
+            (int) ($params['session_id'] ?? 0)
+        );
+        $f3->reroute('/account/clients/' . (int) $client['id'] . '?sessions=one');
+    }
+
+    public function revokeAllClientSessions(Base $f3, array $params): void
+    {
+        $context = $this->clientActionContext($f3, $params);
+
+        if ($context === null) {
+            return;
+        }
+
+        [$user, $client, $sessions] = $context;
+        $sessions->revokeAllClientSessions((int) $user['id'], (int) $client['id']);
+        $f3->reroute('/account/clients/' . (int) $client['id'] . '?sessions=all');
+    }
+
+    public function logoutClientEverywhere(Base $f3, array $params): void
+    {
+        $context = $this->clientActionContext($f3, $params);
+
+        if ($context === null) {
+            return;
+        }
+
+        [$user, $client, $sessions] = $context;
+        $clientService = new ClientService($f3->get('DB'));
+        $endpoint = $clientService->sessionRevocationUrl($client);
+
+        if ($endpoint === '') {
+            $f3->reroute('/account/clients/' . (int) $client['id']);
+            return;
+        }
+
+        $sessions->revokeAllClientSessions((int) $user['id'], (int) $client['id']);
+        $remoteRevoked = (new ClientRequestSigner())->postJson($client, $endpoint, [
+            'event' => 'logout_all',
+            'user_id' => (string) $user['public_id'],
+        ]);
+        $f3->reroute('/account/clients/' . (int) $client['id'] . '?sessions=' . ($remoteRevoked ? 'remote' : 'remote-failed'));
     }
 
     public function updateDisplayName(Base $f3): void
@@ -290,6 +418,8 @@ class HomeController
             $deletionUrl = $clientService->accountDeletionUrl($client);
 
             return [
+                'id' => (int) $client['id'],
+                'detail_url' => '/account/clients/' . (int) $client['id'],
                 'display_name' => $name,
                 'icon' => $icon,
                 'initial' => $this->initial($name),
@@ -306,6 +436,46 @@ class HomeController
                     : '',
             ];
         }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    private function clientForUser(Db $db, int $userId, int $clientId): ?array
+    {
+        if ($userId < 1 || $clientId < 1) {
+            return null;
+        }
+
+        $stmt = $db->pdo()->prepare(
+            'SELECT c.*, connection.scope, connection.connected_at, connection.last_used_at
+             FROM auth_user_client_connections connection
+             INNER JOIN auth_clients c ON c.id = connection.client_id
+             WHERE connection.user_id = :user_id
+             AND connection.client_id = :client_id
+             LIMIT 1'
+        );
+        $stmt->execute(['user_id' => $userId, 'client_id' => $clientId]);
+        $client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($client) ? $client : null;
+    }
+
+    private function clientActionContext(Base $f3, array $params): ?array
+    {
+        $db = $f3->get('DB');
+        $user = $this->currentUser($db);
+
+        if (!$db instanceof Db || $user === null) {
+            $f3->reroute('/account');
+            return null;
+        }
+
+        $client = $this->clientForUser($db, (int) $user['id'], (int) ($params['id'] ?? 0));
+
+        if ($client === null) {
+            $f3->reroute('/account');
+            return null;
+        }
+
+        return [$user, $client, new SessionService($db)];
     }
 
     private function accountI18n(Base $f3, ?array $user, string $returnTo = ''): I18n
@@ -462,6 +632,17 @@ class HomeController
         }
 
         return $language === 'de' ? date('d.m.Y', $timestamp) : date('M j, Y', $timestamp);
+    }
+
+    private function dateTimeLabel(string $value, string $language = 'en'): string
+    {
+        $timestamp = strtotime($value);
+
+        if ($timestamp === false) {
+            return $value;
+        }
+
+        return $language === 'de' ? date('d.m.Y, H:i', $timestamp) : date('M j, Y, H:i', $timestamp);
     }
 
     private function initial(string $value): string

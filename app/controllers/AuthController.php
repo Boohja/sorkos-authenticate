@@ -43,6 +43,11 @@ class AuthController
         $user = $session->currentUser();
 
         if ($user !== null) {
+            if (!$session->currentSessionMayUseClient((int) $client['id'])) {
+                $this->renderLogin($f3, $i18n, $client);
+                return;
+            }
+
             if ($pendingAuthorize['prompt'] === 'none') {
                 $this->redirectToClient($f3, $session, $pendingAuthorize, $user);
                 return;
@@ -63,12 +68,17 @@ class AuthController
             return;
         }
 
-        [, , $pending] = $context;
+        [$i18n, $client, $pending] = $context;
         $session = new SessionService($f3->get('DB'));
         $user = $session->currentUser();
 
         if ($user === null) {
             $f3->reroute($session->pendingAuthorizeUrl());
+            return;
+        }
+
+        if (!$session->currentSessionMayUseClient((int) $client['id'])) {
+            $this->renderLogin($f3, $i18n, $client);
             return;
         }
 
@@ -316,8 +326,14 @@ class AuthController
 
     private function redirectToClient(Base $f3, SessionService $session, array $pending, array $user): void
     {
+        $clientSession = $session->recordClientUsage((int) $user['id'], (int) $pending['client_pk']);
+
+        if ($clientSession === null) {
+            throw new \RuntimeException('Unable to create the client session reference.');
+        }
+
         $authorizationCodes = new AuthorizationCodeService($f3->get('DB'));
-        $code = $authorizationCodes->issue($pending, $user);
+        $code = $authorizationCodes->issue($pending, $user, (int) $clientSession['id']);
         $redirectUrl = $authorizationCodes->callbackUrl($pending, $code);
         $session->clearPendingAuthorizeRequest();
         $this->externalRedirect($redirectUrl);

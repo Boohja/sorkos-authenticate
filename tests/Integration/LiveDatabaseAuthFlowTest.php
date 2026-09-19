@@ -3,8 +3,10 @@
 use App\Services\AuthorizationCodeService;
 use App\Services\ClientConnectionService;
 use App\Services\ClientService;
+use App\Services\ClientRequestSigner;
 use App\Services\Db;
 use App\Services\EmailAuthService;
+use App\Services\SessionService;
 use App\Controllers\ApiController;
 
 beforeEach(function (): void {
@@ -54,6 +56,7 @@ it('validates an authorize request and redeems an authorization code exactly onc
     expect($validation['ok'])->toBeTrue()
         ->and($validation['client']['id'])->toBe($clientPk);
 
+    $clientSession = liveDbCreateSessionGrant($this->db, $userId, $clientPk);
     $codes = new AuthorizationCodeService($this->db);
     $code = $codes->issue([
         'client_pk' => $clientPk,
@@ -62,18 +65,19 @@ it('validates an authorize request and redeems an authorization code exactly onc
         'state' => 'client-state',
     ], [
         'id' => $userId,
-    ]);
+    ], (int) $clientSession['id']);
 
     $redeemed = $codes->redeem($code, $clientPk, $this->redirectUri);
     $connection = liveDbFindConnection($this->pdo, $userId, $clientPk);
 
-    expect($redeemed)->toMatchArray([
-        'id' => $this->publicId,
-        'email' => $this->email,
-        'email_verified' => true,
-        'display_name' => 'Pest Test User',
-        'preferred_language' => 'en',
-    ])
+    expect($redeemed['client_session_token'])->toBe($clientSession['client_session_token'])
+        ->and($redeemed['user'])->toMatchArray([
+            'id' => $this->publicId,
+            'email' => $this->email,
+            'email_verified' => true,
+            'display_name' => 'Pest Test User',
+            'preferred_language' => 'en',
+        ])
         ->and($connection['scope'])->toBe('profile email')
         ->and($connection['connected_at'])->not->toBeEmpty()
         ->and($connection['last_used_at'])->toBe($connection['connected_at'])
@@ -88,6 +92,7 @@ it('validates an authorize request and redeems an authorization code exactly onc
 it('returns and records only data covered by the granted scopes', function (): void {
     $clientPk = liveDbCreateClient($this->pdo, $this->marker, $this->clientId, $this->redirectUri);
     $userId = liveDbCreateUser($this->pdo, $this->marker, $this->publicId, $this->email);
+    $clientSession = liveDbCreateSessionGrant($this->db, $userId, $clientPk);
     $codes = new AuthorizationCodeService($this->db);
     $code = $codes->issue([
         'client_pk' => $clientPk,
@@ -95,19 +100,21 @@ it('returns and records only data covered by the granted scopes', function (): v
         'scope' => 'email',
     ], [
         'id' => $userId,
-    ]);
+    ], (int) $clientSession['id']);
 
     $redeemed = $codes->redeem($code, $clientPk, $this->redirectUri);
     $connection = liveDbFindConnection($this->pdo, $userId, $clientPk);
 
-    expect($redeemed)->toMatchArray([
-        'id' => $this->publicId,
-        'email' => $this->email,
-        'email_verified' => true,
-        'display_name' => null,
-        'avatar_url' => null,
-        'preferred_language' => null,
-    ])->and($connection['scope'])->toBe('email');
+    expect($redeemed['client_session_token'])->toBe($clientSession['client_session_token'])
+        ->and($redeemed['user'])->toMatchArray([
+            'id' => $this->publicId,
+            'email' => $this->email,
+            'email_verified' => true,
+            'display_name' => null,
+            'avatar_url' => null,
+            'preferred_language' => null,
+        ])
+        ->and($connection['scope'])->toBe('email');
 });
 
 it('creates hashed email login codes, verifies them once, and upserts email identities', function (): void {
@@ -140,6 +147,98 @@ it('creates hashed email login codes, verifies them once, and upserts email iden
         ->and((bool) $user['email_verified'])->toBeTrue()
         ->and($sameUser['id'])->toBe($user['id'])
         ->and($sameUser['preferred_language'])->toBe('de');
+});
+
+it('derives the outbound signing key after the next valid existing client secret use', function (): void {
+    $clientPk = liveDbCreateClient($this->pdo, $this->marker, $this->clientId, $this->redirectUri);
+    $stmt = $this->pdo->prepare('SELECT * FROM auth_clients WHERE id = :id');
+    $stmt->execute(['id' => $clientPk]);
+    $client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    expect($client['request_signing_key'])->toBeNull();
+
+    $valid = (new ClientService($this->db))->secretValid($client, 'pest-secret-' . $this->marker);
+    $stored = $this->pdo->query('SELECT request_signing_key FROM auth_clients WHERE id = ' . $clientPk)->fetchColumn();
+
+    expect($valid)->toBeTrue()
+        ->and($stored)->toBe(ClientRequestSigner::deriveKey('pest-secret-' . $this->marker));
+});
+
+it('tracks and revokes one central browser session for a specific client', function (): void {
+    $clientPk = liveDbCreateClient($this->pdo, $this->marker, $this->clientId, $this->redirectUri);
+    $userId = liveDbCreateUser($this->pdo, $this->marker, $this->publicId, $this->email);
+    $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/126.0 Safari/537.36';
+    $_SERVER['REMOTE_ADDR'] = '192.0.2.10';
+    $sessions = new SessionService($this->db);
+    $sessions->createSession(['id' => $userId]);
+    $sessions->recordClientUsage($userId, $clientPk, '2026-09-16 12:00:00');
+    $known = $sessions->sessionsForClient($userId, $clientPk);
+
+    expect($known)->toHaveCount(1)
+        ->and($known[0]['session_description'])->toBe('Chrome on Windows')
+        ->and($known[0]['is_current'])->toBeTrue()
+        ->and($sessions->currentSessionMayUseClient($clientPk))->toBeTrue()
+        ->and($sessions->revokeClientSession($userId, $clientPk, (int) $known[0]['id']))->toBeTrue()
+        ->and($sessions->currentSessionMayUseClient($clientPk))->toBeFalse();
+
+    $sessions->recordClientUsage($userId, $clientPk, '2026-09-16 13:00:00');
+
+    expect($sessions->currentSessionMayUseClient($clientPk))->toBeFalse()
+        ->and($sessions->sessionsForClient($userId, $clientPk))->toBe([]);
+});
+
+it('lets a confidential client introspect and observe revocation of its session token', function (): void {
+    $clientPk = liveDbCreateClient($this->pdo, $this->marker, $this->clientId, $this->redirectUri);
+    $userId = liveDbCreateUser($this->pdo, $this->marker, $this->publicId, $this->email);
+    $clientSession = liveDbCreateSessionGrant($this->db, $userId, $clientPk);
+    (new ClientConnectionService($this->db))->recordSuccessfulLogin($userId, $clientPk, 'profile email');
+    $f3 = $this->app();
+    $f3->set('DB', $this->db);
+    $f3->set('POST', [
+        'client_id' => $this->clientId,
+        'client_secret' => 'wrong-secret',
+        'client_session_token' => $clientSession['client_session_token'],
+    ]);
+
+    ob_start();
+    (new ApiController())->introspectClientSession($f3);
+    $invalidBody = (string) ob_get_clean();
+
+    expect(http_response_code())->toBe(401)
+        ->and(json_decode($invalidBody, true))->toBe(['error' => 'invalid_client']);
+
+    http_response_code(200);
+    $f3->set('POST.client_secret', 'pest-secret-' . $this->marker);
+    ob_start();
+    (new ApiController())->introspectClientSession($f3);
+    $activeBody = (string) ob_get_clean();
+
+    expect(http_response_code())->toBe(200)
+        ->and(json_decode($activeBody, true))->toBe(['active' => true]);
+
+    $deleteCentralSession = $this->pdo->prepare('DELETE FROM auth_sessions WHERE user_id = :user_id');
+    $deleteCentralSession->execute(['user_id' => $userId]);
+
+    http_response_code(200);
+    ob_start();
+    (new ApiController())->introspectClientSession($f3);
+    $afterCentralLogoutBody = (string) ob_get_clean();
+
+    expect(json_decode($afterCentralLogoutBody, true))->toBe(['active' => true]);
+
+    (new SessionService($this->db))->revokeClientSession(
+        $userId,
+        $clientPk,
+        (int) $clientSession['id']
+    );
+
+    http_response_code(200);
+    ob_start();
+    (new ApiController())->introspectClientSession($f3);
+    $revokedBody = (string) ob_get_clean();
+
+    expect(http_response_code())->toBe(200)
+        ->and(json_decode($revokedBody, true))->toBe(['active' => false]);
 });
 
 it('lets an authenticated confidential client idempotently revoke only its user connection', function (): void {
@@ -180,6 +279,21 @@ it('lets an authenticated confidential client idempotently revoke only its user 
     expect(http_response_code())->toBe(204);
 });
 
+function liveDbCreateSessionGrant(Db $db, int $userId, int $clientId): array
+{
+    $_SERVER['HTTP_USER_AGENT'] = 'Pest client session';
+    $_SERVER['REMOTE_ADDR'] = '192.0.2.20';
+    $sessions = new SessionService($db);
+    $sessions->createSession(['id' => $userId]);
+    $clientSession = $sessions->recordClientUsage($userId, $clientId);
+
+    if (!is_array($clientSession)) {
+        throw new RuntimeException('Could not create the client session grant.');
+    }
+
+    return $clientSession;
+}
+
 function liveDbCreateClient(PDO $pdo, string $marker, string $clientId, string $redirectUri): int
 {
     $now = date('Y-m-d H:i:s');
@@ -197,7 +311,7 @@ function liveDbCreateClient(PDO $pdo, string $marker, string $clientId, string $
         'name' => $marker . ' Client',
         'display_name' => 'Pest Client ' . $marker,
         'domain' => 'client.example.test',
-        'settings_json' => json_encode(['response_types' => ['code']]),
+        'settings_json' => '{}',
         'created_at' => $now,
         'updated_at' => $now,
     ]);

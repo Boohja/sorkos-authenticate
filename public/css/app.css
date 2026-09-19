@@ -659,71 +659,31 @@ a {
   text-decoration: none;
 }
 
-.account-client {
-  border-top: 1px solid var(--border);
-}
-
-.account-client-summary {
-  position: relative;
+.account-client-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
   margin: 0 -8px;
-  padding: 16px 38px 16px 8px;
+  padding: 16px 10px;
+  border-top: 1px solid var(--border);
   border-radius: 6px;
-  cursor: pointer;
-  list-style: none;
+  color: inherit;
+  text-decoration: none;
 }
 
-.account-client-summary::-webkit-details-marker {
-  display: none;
-}
-
-.account-client-summary:hover {
+.account-client-row:hover {
   background: var(--surface-soft);
+  color: inherit;
 }
 
-.account-client-summary:focus-visible {
+.account-client-row:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.account-client-indicator {
-  position: absolute;
-  top: 50%;
-  right: 14px;
-  width: 9px;
-  height: 9px;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
-  transform: translateY(-65%) rotate(45deg);
-  transition: transform 180ms cubic-bezier(.22, 1, .36, 1);
-}
-
-.account-client[open] .account-client-indicator {
-  transform: translateY(-25%) rotate(225deg);
-}
-
-.identity-row {
-  grid-template-columns: minmax(72px, max-content) minmax(0, 1fr);
-}
-
-.identity-row strong,
-.account-client strong {
-  color: var(--text);
-  font-weight: 620;
-}
-
-.identity-row span,
-.account-client small {
-  display: block;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-
-.account-client-summary img,
-.account-client-summary > .account-client-icon-fallback {
+.account-client-row img,
+.account-client-row > .account-client-icon-fallback {
   display: grid;
   place-items: center;
   width: 54px;
@@ -737,55 +697,260 @@ a {
   font-weight: 680;
 }
 
-.account-client-details {
-  margin-left: 66px;
-  padding: 0 32px 16px 0;
+.account-client-copy {
+  min-width: 0;
 }
 
-.account-client-access {
-  margin-left: 0;
-}
-
-.account-client-access > span {
+.account-client-copy strong {
+  display: block;
   color: var(--text);
-  font-size: 13px;
   font-weight: 620;
 }
 
-.account-client-access ul {
+.account-client-copy small {
+  display: block;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.account-client-arrow {
+  width: 20px;
+  color: var(--muted);
+  transition: transform 180ms cubic-bezier(.22, 1, .36, 1), color 180ms ease;
+}
+
+.account-client-row:hover .account-client-arrow {
+  color: var(--accent);
+  transform: translateX(3px);
+}
+
+.client-detail-page {
+  width: min(940px, 100%);
+}
+
+.client-detail-back {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 28px;
+  color: var(--muted);
+  font-weight: 620;
+  text-decoration: none;
+}
+
+.client-detail-back:hover {
+  color: var(--accent);
+}
+
+.client-detail-back svg {
+  width: 20px;
+}
+
+.client-detail-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.client-detail-icon {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 72px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  object-fit: contain;
+  padding: 12px;
+  box-shadow: var(--shadow);
+  font-size: 30px;
+  font-weight: 680;
+}
+
+.client-detail-icon.fallback {
+  background: var(--surface-soft);
+}
+
+.client-detail-hero h1 {
+  margin: 0 0 4px;
+}
+
+.client-detail-domain {
+  margin: 0 0 10px;
+  color: var(--muted);
+}
+
+.client-detail-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
-  margin: 7px 0 0;
-  padding: 0;
+  gap: 6px 20px;
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 14px;
+}
+
+.client-session-notice {
+  margin: 0 0 20px;
+}
+
+.client-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, .75fr) minmax(0, 1.45fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.client-shared-data p,
+.client-section-heading p,
+.client-remote-logout p,
+.client-project-account p {
+  max-width: 66ch;
+  margin-bottom: 0;
+}
+
+.shared-data-list {
+  display: grid;
+  gap: 11px;
+  margin: 20px 0 0;
+  padding: 0;
   list-style: none;
 }
 
-.account-client-access li {
-  position: relative;
-  padding-left: 12px;
+.shared-data-list li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  color: var(--text);
 }
 
-.account-client-access li::before {
-  position: absolute;
-  top: .62em;
-  left: 0;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--muted);
-  content: "";
+.shared-data-list svg {
+  width: 20px;
+  color: var(--accent);
 }
 
-.account-client-delete-link {
+.client-sessions-section {
+  grid-row: span 2;
+}
+
+.client-section-heading,
+.client-remote-logout,
+.client-project-account {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.client-section-heading h2,
+.client-remote-logout h2,
+.client-project-account h2 {
+  margin-bottom: 8px;
+}
+
+.client-section-heading form,
+.client-remote-logout form {
+  flex: 0 0 auto;
+}
+
+.client-session-list {
+  display: grid;
+  margin-top: 22px;
+  border-top: 1px solid var(--border);
+}
+
+.client-session-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.client-session-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
+.client-session-icon svg {
+  width: 24px;
+}
+
+.client-session-copy {
+  min-width: 0;
+}
+
+.client-session-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 10px;
+  align-items: center;
+}
+
+.client-session-title strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.current-session-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.client-session-copy small {
+  display: block;
+  color: var(--muted);
+}
+
+.compact-button {
+  min-height: 38px;
   width: auto;
-  margin-top: 14px;
-  justify-self: start;
-  padding: 9px 12px;
+  padding: 8px 12px;
   font-size: 13px;
+}
+
+.client-session-empty {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-top: 22px;
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+  color: var(--muted);
+}
+
+.client-session-empty svg {
+  width: 30px;
+}
+
+.client-session-empty p {
+  margin: 0;
+}
+
+.client-remote-logout,
+.client-project-account {
+  grid-column: 1 / -1;
+  align-items: center;
+}
+
+.client-remote-logout .danger-button,
+.client-project-account .button {
+  flex: 0 0 auto;
+  width: auto;
 }
 
 .account-actions form {
@@ -1075,7 +1240,7 @@ pre {
 }
 
 .notice {
-  border-left: 4px solid var(--accent);
+  border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface-soft);
   padding: 12px 14px;
@@ -1087,7 +1252,7 @@ pre {
 }
 
 .error {
-  border-left-color: var(--danger);
+  border-color: var(--danger);
   background: var(--danger-bg);
   color: var(--danger);
 }
@@ -1291,6 +1456,13 @@ pre {
 .danger-button {
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.button.danger-button:not(:disabled):hover,
+.button.danger-button:not(:disabled):focus-visible {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
 }
 
 .table-wrap {
@@ -1570,7 +1742,7 @@ pre {
     transition-duration: 1ms;
   }
 
-  .account-client-indicator {
+  .account-client-arrow {
     transition: none;
   }
 
@@ -1644,13 +1816,31 @@ pre {
     grid-template-columns: 1fr;
   }
 
-  .account-client-details,
-  .account-client-access,
-  .account-client-delete-link {
-    margin-left: 0;
+  .client-detail-hero,
+  .client-detail-grid {
+    grid-template-columns: 1fr;
   }
 
-  .account-client-delete-link {
+  .client-section-heading,
+  .client-remote-logout,
+  .client-project-account,
+  .client-session-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .client-session-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .client-session-row form {
+    grid-column: 1 / -1;
+  }
+
+  .client-session-row .button,
+  .client-section-heading .button,
+  .client-remote-logout .button,
+  .client-project-account .button {
     width: 100%;
   }
 

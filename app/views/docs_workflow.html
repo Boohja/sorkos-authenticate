@@ -58,7 +58,7 @@ app.get('/login', (req, res) => {
 
     <div class="endpoint">
         <h2>2. Sorkos Login Validates The Request</h2>
-        <p>Sorkos Login checks that the client exists, is active, supports the requested response type, and that the redirect URI is an exact registered match.</p>
+        <p>Sorkos Login checks that the client exists, is active, uses <code>response_type=code</code>, and that the redirect URI is an exact registered match.</p>
     </div>
 
     <div class="endpoint">
@@ -125,7 +125,7 @@ $code = $_GET['code'] ?? '';</pre>
 
     <div class="endpoint">
         <h2>5. Client Exchanges The Code Server-Side</h2>
-        <p>The client validates the returned <code>state</code>, then posts the authorization code to <a href="/docs/api#/Token/post_token"><code>/token</code></a> from its server. The client secret authenticates the project, and the one-time code identifies the Sorkos user who completed the browser flow. If valid, Sorkos Login returns normalized user information and creates or refreshes the user-client connection with the approved scope and latest-use timestamp.</p>
+        <p>The client validates the returned <code>state</code>, then posts the authorization code to <a href="/docs/api#/Token/post_token"><code>/token</code></a> from its server. The client secret authenticates the project, and the one-time code identifies the Sorkos user who completed the browser flow. If valid, Sorkos Login returns normalized user information plus an opaque <code>client_session_token</code>, and creates or refreshes the user-client connection with the approved scope and latest-use timestamp.</p>
         <details class="code-example">
             <summary>Token exchange examples</summary>
             <div class="code-tabs">
@@ -176,7 +176,9 @@ const tokenResult = await response.json();</pre>
 
     <div class="endpoint">
         <h2>6. Client Creates Its Own Local Session</h2>
-        <p>The client stores its own local session data. Sorkos Login does not share cookies across projects and does not write sessions for client applications.</p>
+        <p>The client creates its own local session and stores the returned <code>client_session_token</code> with it. Sorkos Login does not share cookies across projects and does not write sessions for client applications.</p>
+        <p><strong>Optional recurring check:</strong> a confidential client with long-lived sessions can periodically post its client credentials and that token to <a href="/docs/api"><code>/client/sessions/introspect</code></a>. If the response is <code>{"active":false}</code>, destroy the matching local session and require authentication again. A short positive-result cache is recommended instead of checking on every request; security-sensitive actions may check immediately.</p>
+        <p>The central Sorkos browser session and the client-owned session deliberately have separate lifetimes. Expiry or logout of the central browser session alone does not invalidate the client's token. Explicit invalidation in the Sorkos account UI, disconnecting the client, disabling the user, or disabling the client does.</p>
     </div>
 
     <div class="endpoint">
@@ -184,11 +186,12 @@ const tokenResult = await response.json();</pre>
         <p><strong>Default product logout:</strong> the client destroys only its own local product session. It must not call or redirect to the Sorkos Login <code>/logout</code> endpoint. The central Sorkos Login session remains active so the user can continue using SSO in this and other products.</p>
         <p><strong>Special case — explicit Sorkos logout:</strong> only when the product deliberately offers an action that signs the user out of Sorkos itself should it clear its local session and then redirect the browser to <a href="/docs/api#/Session/get_logout"><code>/logout</code></a>. Do not use this endpoint for a normal product logout. A supplied <code>redirect_uri</code> is only used when it exactly matches a registered URI for the supplied <code>client_id</code>.</p>
         <pre>{{ @request_origin }}/logout?client_id=example-id&amp;redirect_uri=https%3A%2F%2Fclient.example%2Fauth%2Fcallback</pre>
+        <p><strong>Optional all-device revocation:</strong> a client that can revoke all of its own sessions for one user may implement the signed endpoint defined in the <a href="/docs/client-contract">client endpoint contract</a>. Once that endpoint is registered for the project, Sorkos offers “Log out on all devices” on the client's account page. Clients without this capability expose only Auth-side invalidation.</p>
     </div>
 
     <div class="endpoint">
         <h2>8. Client Completes Project Account Deletion</h2>
-        <p>A client may set <code>account_deletion_url</code> in its <code>settings_json</code>. The account page then links to that project's regular deletion page without adding parameters; authentication and deletion remain entirely under the project's control.</p>
+        <p>A client may provide its regular account-deletion page for the Sorkos account UI to link to. The link contains no added parameters; authentication and deletion remain entirely under the project's control.</p>
         <p>After the project has deleted its own user account and data, its server posts the public Sorkos user ID to <a href="/docs/api#/Connections/post_client_connections_revoke"><code>/client/connections/revoke</code></a>. The client authenticates with its own ID and secret. The idempotent request removes only this project connection and never deletes the central Sorkos account.</p>
         <pre>POST {{ @request_origin }}/client/connections/revoke
 Content-Type: application/x-www-form-urlencoded
@@ -196,6 +199,6 @@ Content-Type: application/x-www-form-urlencoded
 client_id=example-id&amp;client_secret=example-secret&amp;user_id=usr_example</pre>
     </div>
 
-    <p class="notice">Current implementation status: <code>/authorize</code> validation, the provider-selection screen, first-party E-Mail login, authorization-code issuing, <code>/token</code>, client-connection revocation, and <code>/logout</code> exist. External OAuth providers are still upcoming implementation steps.</p>
+    <p class="notice">Current implementation status: <code>/authorize</code> validation, the provider-selection screen, first-party E-Mail login, authorization-code issuing, <code>/token</code>, client-session introspection, client-connection revocation, and <code>/logout</code> exist. External OAuth providers are still upcoming implementation steps.</p>
 </section>
 <include href="_layout_end.html" />

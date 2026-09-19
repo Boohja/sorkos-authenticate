@@ -90,14 +90,16 @@ class SessionService
 
         $stmt = $this->db->pdo()->prepare(
             'INSERT INTO auth_sessions
-                (session_hash, user_id, user_agent_hash, ip_hash, created_at, expires_at)
+                (session_hash, user_id, user_agent_hash, session_description, ip_hash, created_at, expires_at)
              VALUES
-                (:session_hash, :user_id, :user_agent_hash, :ip_hash, :created_at, :expires_at)'
+                (:session_hash, :user_id, :user_agent_hash, :session_description, :ip_hash, :created_at, :expires_at)'
         );
+        $userAgent = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
         $stmt->execute([
             'session_hash' => hash('sha256', $token),
             'user_id' => (int) $user['id'],
-            'user_agent_hash' => $this->requestHash((string) ($_SERVER['HTTP_USER_AGENT'] ?? '')),
+            'user_agent_hash' => $this->requestHash($userAgent),
+            'session_description' => self::describeUserAgent($userAgent),
             'ip_hash' => $this->requestHash((string) ($_SERVER['REMOTE_ADDR'] ?? '')),
             'created_at' => $now,
             'expires_at' => $expires,
@@ -111,6 +113,196 @@ class SessionService
             'samesite' => 'Lax',
         ]);
         $_COOKIE[self::AUTH_COOKIE] = $token;
+    }
+
+    public function recordClientUsage(int $userId, int $clientId, ?string $usedAt = null): ?array
+    {
+        $sessionId = $this->currentSessionId($userId);
+
+        if ($sessionId === null || $clientId < 1) {
+            return null;
+        }
+
+        $usedAt ??= date('Y-m-d H:i:s');
+        $token = 'cst_' . bin2hex(random_bytes(32));
+        $stmt = $this->db->pdo()->prepare(
+            'INSERT INTO auth_session_clients
+                (session_id, user_id, client_id, client_session_token, created_at, last_used_at, revoked_at)
+             VALUES
+                (:session_id, :user_id, :client_id, :client_session_token, :created_at, :last_used_at, NULL)
+             ON DUPLICATE KEY UPDATE
+                last_used_at = IF(revoked_at IS NULL, VALUES(last_used_at), last_used_at)'
+        );
+        $stmt->execute([
+            'session_id' => $sessionId,
+            'user_id' => $userId,
+            'client_id' => $clientId,
+            'client_session_token' => $token,
+            'created_at' => $usedAt,
+            'last_used_at' => $usedAt,
+        ]);
+
+        $lookup = $this->db->pdo()->prepare(
+            'SELECT id, client_session_token
+             FROM auth_session_clients
+             WHERE session_id = :session_id AND client_id = :client_id
+             LIMIT 1'
+        );
+        $lookup->execute([
+            'session_id' => $sessionId,
+            'client_id' => $clientId,
+        ]);
+        $clientSession = $lookup->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($clientSession) ? $clientSession : null;
+    }
+
+    public function currentSessionMayUseClient(int $clientId): bool
+    {
+        $sessionId = $this->currentSessionId();
+
+        if ($sessionId === null || $clientId < 1) {
+            return false;
+        }
+
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT revoked_at
+             FROM auth_session_clients
+             WHERE session_id = :session_id AND client_id = :client_id
+             LIMIT 1'
+        );
+        $stmt->execute(['session_id' => $sessionId, 'client_id' => $clientId]);
+        $grant = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return !is_array($grant) || $grant['revoked_at'] === null;
+    }
+
+    public function sessionsForClient(int $userId, int $clientId): array
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT sc.id, s.session_hash, COALESCE(s.session_description, \'\') AS session_description,
+                    sc.created_at, sc.last_used_at
+             FROM auth_session_clients sc
+             LEFT JOIN auth_sessions s ON s.id = sc.session_id
+             WHERE sc.user_id = :user_id
+             AND sc.client_id = :client_id
+             AND sc.revoked_at IS NULL
+             ORDER BY sc.last_used_at DESC, sc.id DESC'
+        );
+        $stmt->execute(['user_id' => $userId, 'client_id' => $clientId]);
+        $currentHash = $this->currentTokenHash();
+
+        return array_map(static function (array $session) use ($currentHash): array {
+            $storedHash = (string) ($session['session_hash'] ?? '');
+            $session['is_current'] = $currentHash !== '' && $storedHash !== ''
+                && hash_equals($storedHash, $currentHash);
+            unset($session['session_hash']);
+            return $session;
+        }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    public function revokeClientSession(int $userId, int $clientId, int $clientSessionId): bool
+    {
+        if ($userId < 1 || $clientId < 1 || $clientSessionId < 1) {
+            return false;
+        }
+
+        $stmt = $this->db->pdo()->prepare(
+            'UPDATE auth_session_clients
+             SET revoked_at = :revoked_at
+             WHERE id = :id
+             AND client_id = :client_id
+             AND user_id = :user_id
+             AND revoked_at IS NULL'
+        );
+        $stmt->execute([
+            'revoked_at' => date('Y-m-d H:i:s'),
+            'id' => $clientSessionId,
+            'client_id' => $clientId,
+            'user_id' => $userId,
+        ]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    public function revokeAllClientSessions(int $userId, int $clientId): int
+    {
+        if ($userId < 1 || $clientId < 1) {
+            return 0;
+        }
+
+        $stmt = $this->db->pdo()->prepare(
+            'UPDATE auth_session_clients
+             SET revoked_at = :revoked_at
+             WHERE client_id = :client_id
+             AND user_id = :user_id
+             AND revoked_at IS NULL'
+        );
+        $stmt->execute([
+            'revoked_at' => date('Y-m-d H:i:s'),
+            'client_id' => $clientId,
+            'user_id' => $userId,
+        ]);
+
+        return $stmt->rowCount();
+    }
+
+    public function clientSessionActive(int $clientId, string $clientSessionToken): bool
+    {
+        if (
+            $clientId < 1
+            || preg_match('/^cst_[a-f0-9]{64}$/', $clientSessionToken) !== 1
+        ) {
+            return false;
+        }
+
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT 1
+             FROM auth_session_clients sc
+             INNER JOIN auth_users u ON u.id = sc.user_id
+             INNER JOIN auth_clients c ON c.id = sc.client_id
+             INNER JOIN auth_user_client_connections connection
+                ON connection.user_id = sc.user_id
+                AND connection.client_id = sc.client_id
+             WHERE sc.client_id = :client_id
+             AND sc.client_session_token = :client_session_token
+             AND sc.revoked_at IS NULL
+             AND u.disabled_at IS NULL
+             AND c.is_active = 1
+             LIMIT 1'
+        );
+        $stmt->execute([
+            'client_id' => $clientId,
+            'client_session_token' => $clientSessionToken,
+        ]);
+
+        return $stmt->fetchColumn() !== false;
+    }
+
+    public static function describeUserAgent(string $userAgent): string
+    {
+        if (trim($userAgent) === '') {
+            return 'Unknown browser';
+        }
+
+        $browser = match (true) {
+            str_contains($userAgent, 'Edg/') => 'Edge',
+            str_contains($userAgent, 'Firefox/') || str_contains($userAgent, 'FxiOS/') => 'Firefox',
+            str_contains($userAgent, 'Chrome/') || str_contains($userAgent, 'CriOS/') => 'Chrome',
+            str_contains($userAgent, 'Safari/') => 'Safari',
+            default => 'Browser',
+        };
+        $device = match (true) {
+            str_contains($userAgent, 'iPhone') => 'iPhone',
+            str_contains($userAgent, 'iPad') => 'iPad',
+            str_contains($userAgent, 'Android') => 'Android',
+            str_contains($userAgent, 'Windows') => 'Windows',
+            str_contains($userAgent, 'Macintosh') => 'Mac',
+            str_contains($userAgent, 'Linux') => 'Linux',
+            default => '',
+        };
+
+        return $device === '' ? $browser : $browser . ' on ' . $device;
     }
 
     public function currentUser(): ?array
@@ -168,6 +360,39 @@ class SessionService
         unset($_COOKIE[self::AUTH_COOKIE]);
 
         return $revoked;
+    }
+
+    private function currentSessionId(?int $userId = null): ?int
+    {
+        $sessionHash = $this->currentTokenHash();
+
+        if ($sessionHash === '' || !$this->db->isConfigured()) {
+            return null;
+        }
+
+        $sql = 'SELECT id FROM auth_sessions
+                WHERE session_hash = :session_hash
+                AND revoked_at IS NULL
+                AND expires_at > NOW()';
+        $params = ['session_hash' => $sessionHash];
+
+        if ($userId !== null) {
+            $sql .= ' AND user_id = :user_id';
+            $params['user_id'] = $userId;
+        }
+
+        $sql .= ' LIMIT 1';
+        $stmt = $this->db->pdo()->prepare($sql);
+        $stmt->execute($params);
+        $id = $stmt->fetchColumn();
+
+        return $id === false ? null : (int) $id;
+    }
+
+    private function currentTokenHash(): string
+    {
+        $token = (string) ($_COOKIE[self::AUTH_COOKIE] ?? '');
+        return $token === '' ? '' : hash('sha256', $token);
     }
 
     private function requestHash(string $value): ?string

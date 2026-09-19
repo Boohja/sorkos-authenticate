@@ -13,18 +13,13 @@ it('quotes SQL string literals by escaping single quotes', function (): void {
         ->toBe("'Sorkos''s App'");
 });
 
-it('allows configured response types and rejects missing or unsupported ones', function (): void {
+it('allows only the hard-coded authorization code response type', function (): void {
     $service = new ClientService(new Db([]));
 
-    expect($service->responseTypeAllowed(['settings_json' => null], 'code'))->toBeTrue()
-        ->and($service->responseTypeAllowed(['settings_json' => null], 'token'))->toBeFalse()
-        ->and($service->responseTypeAllowed(['settings_json' => null], ''))->toBeFalse()
-        ->and($service->responseTypeAllowed([
-            'settings_json' => json_encode(['response_types' => ['code', 'device_code']]),
-        ], 'device_code'))->toBeTrue()
-        ->and($service->responseTypeAllowed([
-            'settings_json' => json_encode(['response_types' => 'code']),
-        ], 'code'))->toBeTrue();
+    expect($service->responseTypeAllowed('code'))->toBeTrue()
+        ->and($service->responseTypeAllowed('token'))->toBeFalse()
+        ->and($service->responseTypeAllowed('device_code'))->toBeFalse()
+        ->and($service->responseTypeAllowed(''))->toBeFalse();
 });
 
 it('validates confidential client secrets while allowing public clients', function (): void {
@@ -57,5 +52,20 @@ it('returns only safe absolute account deletion URLs from client settings', func
         ]))->toBe('')
         ->and($service->accountDeletionUrl([
             'settings_json' => '{invalid',
+        ]))->toBe('');
+});
+
+
+it('returns only safe client session revocation URLs', function (): void {
+    $service = new ClientService(new Db([]));
+
+    expect($service->sessionRevocationUrl([
+        'settings_json' => json_encode(['session_revocation_url' => 'https://pulse.test/auth/sessions/revoke']),
+    ]))->toBe('https://pulse.test/auth/sessions/revoke')
+        ->and($service->sessionRevocationUrl([
+            'settings_json' => json_encode(['session_revocation_url' => 'http://pulse.test/auth/sessions/revoke']),
+        ]))->toBe('')
+        ->and($service->sessionRevocationUrl([
+            'settings_json' => json_encode(['session_revocation_url' => 'file:///tmp/revoke']),
         ]))->toBe('');
 });

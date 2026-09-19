@@ -25,6 +25,10 @@
       "description": "Server-side code exchange endpoints."
     },
     {
+      "name": "Client Sessions",
+      "description": "Server-to-server validation of long-lived client sessions."
+    },
+    {
       "name": "Connections",
       "description": "Server-to-server lifecycle operations for a client's connection to a Sorkos identity."
     },
@@ -416,7 +420,7 @@
       "post": {
         "tags": ["Token"],
         "summary": "Exchange authorization code",
-        "description": "Exchanges a short-lived authorization code for normalized user information. This request is made server-side by the client project. The client secret authenticates the client; the authorization code identifies the user session that completed /authorize. A successful exchange creates or refreshes the user's connection to this client and records the requested scope.",
+        "description": "Exchanges a short-lived authorization code for normalized user information and an opaque client_session_token. This request is made server-side by the client project. The client secret authenticates the client; the authorization code identifies the user session that completed /authorize. A successful exchange creates or refreshes the user's connection to this client and records the requested scope. Store client_session_token with the resulting local client session so it can later be introspected.",
         "requestBody": {
           "required": true,
           "content": {
@@ -434,7 +438,7 @@
         },
         "responses": {
           "200": {
-            "description": "Normalized Sorkos Login user information.",
+            "description": "Normalized Sorkos Login user information and the client session token associated with this authorization.",
             "content": {
               "application/json": {
                 "schema": {
@@ -445,6 +449,60 @@
           },
           "400": {
             "description": "Invalid request, code, grant type, client credentials, or redirect URI.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/client/sessions/introspect": {
+      "post": {
+        "tags": ["Client Sessions"],
+        "summary": "Check whether a client session is still active",
+        "description": "Optional recurring server-to-server check for confidential clients with long-lived local sessions. Authenticate the client and submit the opaque client_session_token returned by /token. An active=false result means the local session must be destroyed and the user must authenticate again. Expiry or logout of the user's central Sorkos browser session alone does not make this client session inactive.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientSessionIntrospectionRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientSessionIntrospectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The token was checked. Unknown, malformed, revoked, disconnected, disabled-user, or inactive-client tokens return active=false.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientSessionIntrospectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Required request fields are missing or too long.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unknown, public, or incorrectly authenticated client.",
             "content": {
               "application/json": {
                 "schema": {
@@ -584,10 +642,49 @@
       },
       "TokenResponse": {
         "type": "object",
-        "required": ["user"],
+        "required": ["user", "client_session_token"],
         "properties": {
           "user": {
             "$ref": "#/components/schemas/User"
+          },
+          "client_session_token": {
+            "type": "string",
+            "pattern": "^cst_[a-f0-9]{64}$",
+            "description": "Opaque identifier for the client session grant. Store it with the local session. It is not a bearer credential and introspection also requires the confidential client's credentials.",
+            "example": "cst_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          }
+        }
+      },
+      "ClientSessionIntrospectionRequest": {
+        "type": "object",
+        "required": ["client_id", "client_secret", "client_session_token"],
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "The calling project's registered client identifier.",
+            "example": "example-id"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "The confidential client's server-side secret.",
+            "example": "example-secret"
+          },
+          "client_session_token": {
+            "type": "string",
+            "pattern": "^cst_[a-f0-9]{64}$",
+            "description": "The opaque token returned by /token for the local session being checked.",
+            "example": "cst_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          }
+        }
+      },
+      "ClientSessionIntrospectionResponse": {
+        "type": "object",
+        "required": ["active"],
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "Whether this token still represents an active grant for the authenticated client.",
+            "example": true
           }
         }
       },

@@ -20,7 +20,8 @@ class ClientConfigurationService
             'title' => 'Settings',
             'keys' => [
                 'account_deletion_url' => ['label' => 'Account deletion URL', 'type' => 'absolute_url', 'placeholder' => 'https://example.com/account/delete'],
-                'response_types' => ['label' => 'Response types', 'type' => 'list', 'placeholder' => 'code'],
+                'session_revocation_url' => ['label' => 'Session revocation URL', 'type' => 'absolute_url', 'placeholder' => 'https://example.com/auth/sessions/revoke'],
+                'user_deletion_url' => ['label' => 'User deletion URL', 'type' => 'absolute_url', 'placeholder' => 'https://example.com/auth/users/delete'],
             ],
         ],
     ];
@@ -31,6 +32,10 @@ class ClientConfigurationService
 
         foreach (self::DEFINITIONS as $groupKey => $definition) {
             $values = $this->decode((string) ($client[$definition['column']] ?? ''));
+            if ($groupKey === 'settings') {
+                unset($values['response_types']);
+            }
+
             $entries = [];
 
             foreach ($values as $key => $value) {

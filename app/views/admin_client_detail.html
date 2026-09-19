@@ -22,6 +22,7 @@
                 <dt>Status</dt><dd>{{ @client.is_active ? 'Active' : 'Inactive' }}</dd>
                 <dt>Confidential</dt><dd>{{ @client.is_confidential ? 'Yes' : 'No' }}</dd>
                 <dt>Client Secret</dt><dd>{{ @client.client_secret_hash ? 'Provided' : 'Not provided' }}</dd>
+                <dt>Signed Auth Requests</dt><dd>{{ @client.request_signing_key ? 'Ready' : 'Pending next verified secret use' }}</dd>
                 <dt>Created</dt><dd>{{ @client.created_at }}</dd>
                 <dt>Updated</dt><dd>{{ @client.updated_at }}</dd>
             </dl>

@@ -33,6 +33,7 @@ CREATE TABLE auth_sessions (
   session_hash CHAR(64) NOT NULL UNIQUE,
   user_id BIGINT UNSIGNED NOT NULL,
   user_agent_hash CHAR(64) NULL,
+  session_description VARCHAR(120) NULL,
   ip_hash CHAR(64) NULL,
   created_at DATETIME NOT NULL,
   expires_at DATETIME NOT NULL,
@@ -48,6 +49,7 @@ CREATE TABLE auth_clients (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   client_id VARCHAR(128) NOT NULL UNIQUE,
   client_secret_hash VARCHAR(255) NULL,
+  request_signing_key CHAR(64) NULL,
   name VARCHAR(255) NOT NULL,
   display_name VARCHAR(255) NOT NULL,
   domain VARCHAR(255) NULL,
@@ -60,6 +62,29 @@ CREATE TABLE auth_clients (
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE auth_session_clients (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  session_id BIGINT UNSIGNED NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  client_id BIGINT UNSIGNED NOT NULL,
+  client_session_token VARCHAR(68) NOT NULL UNIQUE,
+  created_at DATETIME NOT NULL,
+  last_used_at DATETIME NOT NULL,
+  revoked_at DATETIME NULL,
+  UNIQUE KEY uniq_session_client (session_id, client_id),
+  KEY idx_client_active (client_id, revoked_at),
+  KEY idx_user_client_active (user_id, client_id, revoked_at),
+  CONSTRAINT fk_session_clients_session
+    FOREIGN KEY (session_id) REFERENCES auth_sessions(id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_session_clients_user
+    FOREIGN KEY (user_id) REFERENCES auth_users(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_session_clients_client
+    FOREIGN KEY (client_id) REFERENCES auth_clients(id)
+    ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE auth_email_login_codes (
@@ -95,6 +120,7 @@ CREATE TABLE auth_authorization_codes (
   code_hash CHAR(64) NOT NULL UNIQUE,
   client_id BIGINT UNSIGNED NOT NULL,
   user_id BIGINT UNSIGNED NOT NULL,
+  session_client_id BIGINT UNSIGNED NULL,
   redirect_uri TEXT NOT NULL,
   scope VARCHAR(255) NULL,
   created_at DATETIME NOT NULL,
@@ -102,13 +128,17 @@ CREATE TABLE auth_authorization_codes (
   used_at DATETIME NULL,
   KEY idx_client_id (client_id),
   KEY idx_user_id (user_id),
+  KEY idx_session_client_id (session_client_id),
   KEY idx_expires_at (expires_at),
   CONSTRAINT fk_auth_code_client
     FOREIGN KEY (client_id) REFERENCES auth_clients(id)
     ON DELETE CASCADE,
   CONSTRAINT fk_auth_code_user
     FOREIGN KEY (user_id) REFERENCES auth_users(id)
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+  CONSTRAINT fk_auth_code_session_client
+    FOREIGN KEY (session_client_id) REFERENCES auth_session_clients(id)
+    ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE auth_user_client_connections (

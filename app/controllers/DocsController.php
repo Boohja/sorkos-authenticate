@@ -38,6 +38,11 @@ class DocsController
         $this->render($f3, 'Workflow - Sorkos Login', 'docs_workflow.html');
     }
 
+    public function clientContract(Base $f3): void
+    {
+        $this->render($f3, 'Client Contract - Sorkos Login', 'docs_client_contract.html');
+    }
+
     private function render(Base $f3, string $title, string $template): void
     {
         $f3->set('title', 'Documentation - Sorkos Login');

@@ -40,7 +40,7 @@ class ClientService
             return $this->invalid('error.invalid_client');
         }
 
-        if (!$this->responseTypeAllowed($client, $responseType)) {
+        if (!$this->responseTypeAllowed($responseType)) {
             return $this->invalid('error.unsupported_response_type');
         }
 
@@ -71,8 +71,25 @@ class ClientService
         }
 
         $hash = (string) ($client['client_secret_hash'] ?? '');
+        $valid = $hash !== '' && $secret !== '' && password_verify($secret, $hash);
 
-        return $hash !== '' && $secret !== '' && password_verify($secret, $hash);
+        if ($valid
+            && empty($client['request_signing_key'])
+            && (int) ($client['id'] ?? 0) > 0
+            && $this->db->isConfigured()
+        ) {
+            $stmt = $this->db->pdo()->prepare(
+                'UPDATE auth_clients
+                 SET request_signing_key = :request_signing_key
+                 WHERE id = :id AND request_signing_key IS NULL'
+            );
+            $stmt->execute([
+                'request_signing_key' => ClientRequestSigner::deriveKey($secret),
+                'id' => (int) $client['id'],
+            ]);
+        }
+
+        return $valid;
     }
 
     public function redirectUriAllowed(int $clientPk, string $redirectUri): bool
@@ -88,21 +105,9 @@ class ClientService
         return (int) $stmt->fetchColumn() > 0;
     }
 
-    public function responseTypeAllowed(array $client, string $responseType): bool
+    public function responseTypeAllowed(string $responseType): bool
     {
-        if ($responseType === '') {
-            return false;
-        }
-
-        $settings = $this->settings($client);
-
-        $allowed = $settings['response_types'] ?? ['code'];
-
-        if (!is_array($allowed)) {
-            $allowed = ['code'];
-        }
-
-        return in_array($responseType, $allowed, true);
+        return $responseType === 'code';
     }
 
     public function accountDeletionUrl(array $client): string
@@ -116,6 +121,19 @@ class ClientService
         $scheme = strtolower((string) (parse_url($url, PHP_URL_SCHEME) ?? ''));
 
         return in_array($scheme, ['http', 'https'], true) ? $url : '';
+    }
+
+    public function sessionRevocationUrl(array $client): string
+    {
+        $url = trim((string) ($this->settings($client)['session_revocation_url'] ?? ''));
+
+        if ($url === '' || filter_var($url, FILTER_VALIDATE_URL) === false) {
+            return '';
+        }
+
+        $scheme = strtolower((string) (parse_url($url, PHP_URL_SCHEME) ?? ''));
+
+        return $scheme === 'https' ? $url : '';
     }
 
     public static function csvToList(string $value): array

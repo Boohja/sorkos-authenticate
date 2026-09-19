@@ -28,6 +28,22 @@ $f3->route('POST /account/display-name', function (Base $f3): void {
     (new App\Controllers\HomeController())->updateDisplayName($f3);
 });
 
+$f3->route('GET /account/clients/@id', function (Base $f3, array $params): void {
+    (new App\Controllers\HomeController())->clientDetail($f3, $params);
+});
+
+$f3->route('POST /account/clients/@id/sessions/@session_id/revoke', function (Base $f3, array $params): void {
+    (new App\Controllers\HomeController())->revokeClientSession($f3, $params);
+});
+
+$f3->route('POST /account/clients/@id/sessions/revoke-all', function (Base $f3, array $params): void {
+    (new App\Controllers\HomeController())->revokeAllClientSessions($f3, $params);
+});
+
+$f3->route('POST /account/clients/@id/logout-all', function (Base $f3, array $params): void {
+    (new App\Controllers\HomeController())->logoutClientEverywhere($f3, $params);
+});
+
 $f3->route(['GET /profile', 'GET /profile/'], function (Base $f3): void {
     $f3->reroute('/account');
 });
@@ -42,6 +58,10 @@ $f3->route('GET /docs/openapi.json', function (Base $f3): void {
 
 $f3->route('GET /docs/workflow', function (Base $f3): void {
     (new App\Controllers\DocsController())->workflow($f3);
+});
+
+$f3->route('GET /docs/client-contract', function (Base $f3): void {
+    (new App\Controllers\DocsController())->clientContract($f3);
 });
 
 $f3->route(['GET /internal/cleanup', 'POST /internal/cleanup'], function (Base $f3): void {
@@ -64,6 +84,9 @@ $f3->route('POST /token', function (Base $f3): void {
     (new App\Controllers\ApiController())->token($f3);
 });
 
+$f3->route('POST /client/sessions/introspect', function (Base $f3): void {
+    (new App\Controllers\ApiController())->introspectClientSession($f3);
+});
 $f3->route('POST /client/connections/revoke', function (Base $f3): void {
     (new App\Controllers\ApiController())->revokeClientConnection($f3);
 });

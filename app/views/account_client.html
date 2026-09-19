@@ -1,0 +1,111 @@
+<include href="_layout_start.html" />
+<section class="account-page client-detail-page">
+    <a class="client-detail-back" href="/account">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path d="M11.75 4.5 6.25 10l5.5 5.5M6.5 10h7.25" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/>
+        </svg>
+        <span>{{ @account.back_to_projects }}</span>
+    </a>
+
+    <header class="client-detail-hero">
+        <check if="{{ @account_client.icon }}">
+            <true><img class="client-detail-icon" src="{{ @account_client.icon }}" alt=""></true>
+            <false><span class="client-detail-icon fallback" aria-hidden="true">{{ @account_client.initial }}</span></false>
+        </check>
+        <div>
+            <h1>{{ @account_client.display_name }}</h1>
+            <check if="{{ @account_client.domain }}"><p class="client-detail-domain">{{ @account_client.domain }}</p></check>
+            <div class="client-detail-meta">
+                <check if="{{ @account_client.connected_label }}"><span>{{ @account_client.connected_label }}</span></check>
+                <check if="{{ @account_client.last_used_label }}"><span>{{ @account_client.last_used_label }}</span></check>
+            </div>
+        </div>
+    </header>
+
+    <check if="{{ @account_client_status_key }}">
+        <p class="notice client-session-notice" role="status">{{ Base::instance()->get(@account_client_status_key) }}</p>
+    </check>
+
+    <div class="client-detail-grid">
+        <section class="account-section client-shared-data">
+            <h2>{{ @account.shared_data }}</h2>
+            <p>{{ @account.shared_data_intro }}</p>
+            <ul class="shared-data-list">
+                <repeat group="{{ @account_client.shared_data }}" value="{{ @data_label }}">
+                    <li>
+                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5.5 10 3 3 6-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg>
+                        <span>{{ @data_label }}</span>
+                    </li>
+                </repeat>
+            </ul>
+        </section>
+
+        <section class="account-section client-sessions-section">
+            <div class="client-section-heading">
+                <div>
+                    <h2>{{ @account.sessions }}</h2>
+                    <p>{{ @account.sessions_intro }}</p>
+                </div>
+                <check if="{{ count(@account_client_sessions) }}">
+                    <form method="post" action="/account/clients/{{ @account_client.id }}/sessions/revoke-all">
+                        <button class="button danger-button compact-button" type="submit">{{ @account.invalidate_all_sessions }}</button>
+                    </form>
+                </check>
+            </div>
+
+            <check if="{{ count(@account_client_sessions) }}">
+                <true>
+                    <div class="client-session-list">
+                        <repeat group="{{ @account_client_sessions }}" value="{{ @session }}">
+                            <article class="client-session-row">
+                                <span class="client-session-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" focusable="false"><rect x="3.5" y="4.5" width="17" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 20h8M12 16.5V20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/></svg>
+                                </span>
+                                <div class="client-session-copy">
+                                    <div class="client-session-title">
+                                        <strong>{{ @session.description }}</strong>
+                                        <check if="{{ @session.is_current }}"><span class="current-session-label">{{ @account.current_session }}</span></check>
+                                    </div>
+                                    <small>{{ @session.last_used_label }}</small>
+                                    <small>{{ @session.created_label }}</small>
+                                </div>
+                                <form method="post" action="/account/clients/{{ @account_client.id }}/sessions/{{ @session.id }}/revoke">
+                                    <button class="button compact-button" type="submit">{{ @account.invalidate_session }}</button>
+                                </form>
+                            </article>
+                        </repeat>
+                    </div>
+                </true>
+                <false>
+                    <div class="client-session-empty">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7.5 7.5h9m-9 4.5h6M5 3.5h14a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V5A1.5 1.5 0 0 1 5 3.5Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/></svg>
+                        <p>{{ @account.no_client_sessions }}</p>
+                    </div>
+                </false>
+            </check>
+        </section>
+
+        <check if="{{ @account_client.has_remote_logout }}">
+            <section class="account-section client-remote-logout">
+                <div>
+                    <h2>{{ @account.logout_all_devices }}</h2>
+                    <p>{{ @account.logout_all_devices_text }}</p>
+                </div>
+                <form method="post" action="/account/clients/{{ @account_client.id }}/logout-all">
+                    <button class="button danger-button" type="submit">{{ @account.logout_all_devices }}</button>
+                </form>
+            </section>
+        </check>
+
+        <check if="{{ @account_client.deletion_url }}">
+            <section class="account-section client-project-account">
+                <div>
+                    <h2>{{ @account.project_account }}</h2>
+                    <p>{{ @account.project_account_text }}</p>
+                </div>
+                <a class="button" href="{{ @account_client.deletion_url }}">{{ @account_client.deletion_label }}</a>
+            </section>
+        </check>
+    </div>
+</section>
+<include href="_layout_end.html" />

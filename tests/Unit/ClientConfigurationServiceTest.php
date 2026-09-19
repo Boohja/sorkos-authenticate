@@ -10,20 +10,18 @@ it('lists only supported configuration keys that have not been used', function (
 
     expect(array_column($groups[0]['entries'], 'key'))->toBe(['icon'])
         ->and(array_column($groups[0]['available'], 'key'))->toBe(['logo'])
-        ->and(array_column($groups[1]['entries'], 'key'))->toBe(['response_types'])
-        ->and(array_column($groups[1]['available'], 'key'))->toBe(['account_deletion_url']);
+        ->and(array_column($groups[1]['entries'], 'key'))->toBe([])
+        ->and(array_column($groups[1]['available'], 'key'))->toBe(['account_deletion_url', 'session_revocation_url', 'user_deletion_url']);
 });
 
-it('normalizes supported values and rejects unsafe URLs or duplicate keys', function (): void {
+it('normalizes supported values and rejects unsafe URLs or removed keys', function (): void {
     $service = new ClientConfigurationService();
     $settings = $service->add('{}', 'settings', 'account_deletion_url', 'https://pulse.test/account/delete');
-    $responseTypes = $service->add('{}', 'settings', 'response_types', 'code, device_code code');
 
     expect(json_decode((string) $settings, true))->toBe([
         'account_deletion_url' => 'https://pulse.test/account/delete',
-    ])->and(json_decode((string) $responseTypes, true))->toBe([
-        'response_types' => ['code', 'device_code'],
-    ])->and($service->add((string) $settings, 'settings', 'account_deletion_url', 'https://other.test/delete'))->toBeNull()
+    ])->and($service->add('{}', 'settings', 'response_types', 'code'))->toBeNull()
+        ->and($service->add((string) $settings, 'settings', 'account_deletion_url', 'https://other.test/delete'))->toBeNull()
         ->and($service->add('{}', 'settings', 'account_deletion_url', 'javascript:alert(1)'))->toBeNull()
         ->and($service->add('{}', 'branding', 'icon', '/img/pulse.svg'))->not->toBeNull();
 });

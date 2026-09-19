@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Services\AdminAuthService;
 use App\Services\ClientConfigurationService;
+use App\Services\ClientRequestSigner;
 use Base;
 use PDO;
 
@@ -113,11 +114,16 @@ class AdminController
 
         if (trim($secret) !== '') {
             $stmt = $f3->get('DB')->pdo()->prepare(
-                'UPDATE auth_clients SET client_secret_hash = :client_secret_hash, updated_at = :updated_at WHERE id = :id'
+                'UPDATE auth_clients
+                 SET client_secret_hash = :client_secret_hash,
+                     request_signing_key = :request_signing_key,
+                     updated_at = :updated_at
+                 WHERE id = :id'
             );
             $stmt->execute([
                 'id' => $clientId,
                 'client_secret_hash' => password_hash($secret, PASSWORD_DEFAULT),
+                'request_signing_key' => ClientRequestSigner::deriveKey($secret),
                 'updated_at' => date('Y-m-d H:i:s'),
             ]);
         }

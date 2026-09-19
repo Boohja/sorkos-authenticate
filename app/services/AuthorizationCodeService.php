@@ -17,7 +17,7 @@ class AuthorizationCodeService
         $this->db = $db;
     }
 
-    public function issue(array $pendingAuthorize, array $user): string
+    public function issue(array $pendingAuthorize, array $user, int $sessionClientId): string
     {
         $code = bin2hex(random_bytes(32));
         $now = date('Y-m-d H:i:s');
@@ -25,14 +25,15 @@ class AuthorizationCodeService
 
         $stmt = $this->db->pdo()->prepare(
             'INSERT INTO auth_authorization_codes
-                (code_hash, client_id, user_id, redirect_uri, scope, created_at, expires_at)
+                (code_hash, client_id, user_id, session_client_id, redirect_uri, scope, created_at, expires_at)
              VALUES
-                (:code_hash, :client_id, :user_id, :redirect_uri, :scope, :created_at, :expires_at)'
+                (:code_hash, :client_id, :user_id, :session_client_id, :redirect_uri, :scope, :created_at, :expires_at)'
         );
         $stmt->execute([
             'code_hash' => hash('sha256', $code),
             'client_id' => (int) $pendingAuthorize['client_pk'],
             'user_id' => (int) $user['id'],
+            'session_client_id' => $sessionClientId,
             'redirect_uri' => (string) $pendingAuthorize['redirect_uri'],
             'scope' => (string) ($pendingAuthorize['scope'] ?? ''),
             'created_at' => $now,
@@ -61,14 +62,20 @@ class AuthorizationCodeService
 
         try {
             $stmt = $pdo->prepare(
-                'SELECT c.*, u.public_id, u.email, u.email_verified, u.display_name, u.avatar_url, u.preferred_language
+                'SELECT c.*, sc.client_session_token,
+                        u.public_id, u.email, u.email_verified, u.display_name, u.avatar_url, u.preferred_language
                  FROM auth_authorization_codes c
+                 INNER JOIN auth_session_clients sc
+                    ON sc.id = c.session_client_id
+                    AND sc.client_id = c.client_id
+                    AND sc.user_id = c.user_id
                  INNER JOIN auth_users u ON u.id = c.user_id
                  WHERE c.code_hash = :code_hash
                  AND c.client_id = :client_id
                  AND c.redirect_uri = :redirect_uri
                  AND c.used_at IS NULL
                  AND c.expires_at > NOW()
+                 AND sc.revoked_at IS NULL
                  AND u.disabled_at IS NULL
                  LIMIT 1'
             );
@@ -114,14 +121,17 @@ class AuthorizationCodeService
             $sharesProfile = in_array('profile', $scopes, true);
 
             return [
-                'id' => (string) $row['public_id'],
-                'email' => $sharesEmail && $row['email'] !== null ? (string) $row['email'] : null,
-                'email_verified' => $sharesEmail && (bool) $row['email_verified'],
-                'display_name' => $sharesProfile && $row['display_name'] !== null ? (string) $row['display_name'] : null,
-                'avatar_url' => $sharesProfile && $row['avatar_url'] !== null ? (string) $row['avatar_url'] : null,
-                'preferred_language' => $sharesProfile && $row['preferred_language'] !== null
-                    ? (string) $row['preferred_language']
-                    : null,
+                'client_session_token' => (string) $row['client_session_token'],
+                'user' => [
+                    'id' => (string) $row['public_id'],
+                    'email' => $sharesEmail && $row['email'] !== null ? (string) $row['email'] : null,
+                    'email_verified' => $sharesEmail && (bool) $row['email_verified'],
+                    'display_name' => $sharesProfile && $row['display_name'] !== null ? (string) $row['display_name'] : null,
+                    'avatar_url' => $sharesProfile && $row['avatar_url'] !== null ? (string) $row['avatar_url'] : null,
+                    'preferred_language' => $sharesProfile && $row['preferred_language'] !== null
+                        ? (string) $row['preferred_language']
+                        : null,
+                ],
             ];
         } catch (\Throwable $exception) {
             if ($pdo->inTransaction()) {

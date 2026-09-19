@@ -44,9 +44,9 @@ class ApiController
             return;
         }
 
-        $user = (new AuthorizationCodeService($f3->get('DB')))->redeem($code, (int) $client['id'], $redirectUri);
+        $redemption = (new AuthorizationCodeService($f3->get('DB')))->redeem($code, (int) $client['id'], $redirectUri);
 
-        if ($user === null) {
+        if ($redemption === null) {
             $this->json([
                 'error' => 'invalid_grant',
                 'error_description' => 'The authorization code is invalid, expired, already used, or does not match this client.',
@@ -54,7 +54,35 @@ class ApiController
             return;
         }
 
-        $this->json(['user' => $user]);
+        $this->json($redemption);
+    }
+
+    public function introspectClientSession(Base $f3): void
+    {
+        $params = $this->requestParams($f3);
+        $clientId = trim((string) ($params['client_id'] ?? ''));
+        $clientSecret = (string) ($params['client_secret'] ?? '');
+        $clientSessionToken = trim((string) ($params['client_session_token'] ?? ''));
+
+        if ($clientId === '' || $clientSecret === '' || $clientSessionToken === '' || strlen($clientSessionToken) > 68) {
+            $this->json(['error' => 'invalid_request'], 400);
+            return;
+        }
+
+        $clients = new ClientService($f3->get('DB'));
+        $client = $clients->findActiveByClientId($clientId);
+
+        if ($client === null || empty($client['is_confidential']) || !$clients->secretValid($client, $clientSecret)) {
+            $this->json(['error' => 'invalid_client'], 401);
+            return;
+        }
+
+        $active = (new SessionService($f3->get('DB')))->clientSessionActive(
+            (int) $client['id'],
+            $clientSessionToken
+        );
+
+        $this->json(['active' => $active]);
     }
 
     public function logout(Base $f3): void
