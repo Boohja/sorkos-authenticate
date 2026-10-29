@@ -77,7 +77,7 @@ class ApiController
             return;
         }
 
-        $active = (new SessionService($f3->get('DB')))->clientSessionActive(
+        $active = (new SessionService($f3->get('DB'), (array) $f3->get('APP_CONFIG')))->clientSessionActive(
             (int) $client['id'],
             $clientSessionToken
         );
@@ -87,7 +87,7 @@ class ApiController
 
     public function logout(Base $f3): void
     {
-        $revoked = (new SessionService($f3->get('DB')))->revokeCurrentSession();
+        $revoked = (new SessionService($f3->get('DB'), (array) $f3->get('APP_CONFIG')))->revokeCurrentSession();
         $returnUri = $this->validatedLogoutReturnUri($f3);
 
         if ($returnUri !== null) {

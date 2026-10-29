@@ -51,7 +51,7 @@ class HomeController
         $f3->set('layout_variant', 'split');
         $f3->set('hide_split_header', false);
         $f3->set('client_icon', '');
-        $f3->set('current_user', $this->currentUser($db));
+        $f3->set('current_user', $this->currentUser($db, (array) $f3->get('APP_CONFIG')));
         $f3->set('current_user_label', $this->userLabel($f3->get('current_user')));
         $f3->set('environment', (string) ($config['app']['env'] ?? 'local'));
         $f3->set('db_status', $dbStatus);
@@ -72,7 +72,7 @@ class HomeController
     public function account(Base $f3): void
     {
         $db = $f3->get('DB');
-        $user = $this->currentUser($db);
+        $user = $this->currentUser($db, (array) $f3->get('APP_CONFIG'));
         $returnTo = $this->loginReturnUrl($f3);
         $i18n = $this->accountI18n($f3, $user, $returnTo);
         $identities = $this->identityRows($db, $user);
@@ -105,7 +105,7 @@ class HomeController
     public function clientDetail(Base $f3, array $params): void
     {
         $db = $f3->get('DB');
-        $user = $this->currentUser($db);
+        $user = $this->currentUser($db, (array) $f3->get('APP_CONFIG'));
 
         if (!$db instanceof Db || $user === null) {
             $f3->reroute('/account');
@@ -121,7 +121,7 @@ class HomeController
 
         $i18n = $this->accountI18n($f3, $user);
         $clientService = new ClientService($db);
-        $sessionService = new SessionService($db);
+        $sessionService = new SessionService($db, (array) $f3->get('APP_CONFIG'));
         $sessions = array_map(function (array $session) use ($i18n): array {
             $description = trim((string) ($session['session_description'] ?? ''));
             $session['description'] = $description !== '' ? $description : $i18n->t('account.session_unknown');
@@ -232,7 +232,7 @@ class HomeController
     public function updateDisplayName(Base $f3): void
     {
         $db = $f3->get('DB');
-        $user = $this->currentUser($db);
+        $user = $this->currentUser($db, (array) $f3->get('APP_CONFIG'));
         $identities = $this->identityRows($db, $user);
         $returnTo = $this->loginReturnUrl($f3);
 
@@ -356,13 +356,13 @@ class HomeController
         return $path . $query;
     }
 
-    private function currentUser(mixed $db): ?array
+    private function currentUser(mixed $db, array $config = []): ?array
     {
         if (!$db instanceof Db) {
             return null;
         }
 
-        return (new SessionService($db))->currentUser();
+        return (new SessionService($db, $config))->currentUser();
     }
 
     private function identityRows(mixed $db, ?array $user): array
@@ -461,7 +461,7 @@ class HomeController
     private function clientActionContext(Base $f3, array $params): ?array
     {
         $db = $f3->get('DB');
-        $user = $this->currentUser($db);
+        $user = $this->currentUser($db, (array) $f3->get('APP_CONFIG'));
 
         if (!$db instanceof Db || $user === null) {
             $f3->reroute('/account');
@@ -475,7 +475,7 @@ class HomeController
             return null;
         }
 
-        return [$user, $client, new SessionService($db)];
+        return [$user, $client, new SessionService($db, (array) $f3->get('APP_CONFIG'))];
     }
 
     private function accountI18n(Base $f3, ?array $user, string $returnTo = ''): I18n

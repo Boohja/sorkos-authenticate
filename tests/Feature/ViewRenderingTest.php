@@ -1,5 +1,23 @@
 <?php
 
+it('renders the admin login with a progressively enhanced OTP step', function (): void {
+    $html = $this->renderView('admin_login.html', [
+        'title' => 'Admin Login',
+        'html_lang' => 'en',
+        'active_nav' => 'admin',
+        'invalid_login' => false,
+    ]);
+
+    expect($html)->toContain('data-admin-login-form')
+        ->and($html)->toContain('autocomplete="username"')
+        ->and($html)->toContain('autocomplete="current-password"')
+        ->and($html)->toContain('autocomplete="one-time-code"')
+        ->and($html)->toContain('data-admin-login-credentials')
+        ->and($html)->toContain('data-admin-login-otp')
+        ->and($html)->toContain('data-continue-label="Continue"')
+        ->and($html)->toContain('data-submit-label="Sign In"');
+});
+
 it('renders enabled email login as a link and unavailable providers as disabled buttons', function (): void {
     $html = $this->renderView('login.html', [
         'title' => 'Example Login with Sorkos',
@@ -203,7 +221,7 @@ it('renders account actions and shared interaction feedback hooks', function ():
     expect($html)->toContain('data-transition-to-standard')
         ->and($html)->toContain('method="post" action="/logout"')
         ->and($html)->toContain('Log out')
-        ->and($html)->toContain('/js/app.js?v=20260728-client-configuration');
+        ->and($html)->toContain('/js/app.js?v=20261029-admin-login-steps');
 });
 
 it('documents local product logout as the default and central logout as a special case', function (): void {

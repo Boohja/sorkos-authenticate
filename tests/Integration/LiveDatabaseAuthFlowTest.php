@@ -149,6 +149,22 @@ it('creates hashed email login codes, verifies them once, and upserts email iden
         ->and($sameUser['preferred_language'])->toBe('de');
 });
 
+it('keeps an unlimited central auth session active without a database expiry', function (): void {
+    $userId = liveDbCreateUser($this->pdo, $this->marker, $this->publicId, $this->email);
+    (new SessionService($this->db))->createSession(['id' => $userId]);
+    $sessions = new SessionService($this->db, [
+        'app' => ['session_ttl_days' => -1],
+    ]);
+    $user = $sessions->currentUser();
+    $stmt = $this->pdo->prepare(
+        'SELECT expires_at FROM auth_sessions WHERE user_id = :user_id ORDER BY id DESC LIMIT 1'
+    );
+    $stmt->execute(['user_id' => $userId]);
+
+    expect($stmt->fetchColumn())->toBeNull()
+        ->and($user['public_id'])->toBe($this->publicId);
+});
+
 it('derives the outbound signing key after the next valid existing client secret use', function (): void {
     $clientPk = liveDbCreateClient($this->pdo, $this->marker, $this->clientId, $this->redirectUri);
     $stmt = $this->pdo->prepare('SELECT * FROM auth_clients WHERE id = :id');

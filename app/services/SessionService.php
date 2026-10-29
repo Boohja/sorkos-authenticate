@@ -10,14 +10,20 @@ use PDOException;
 class SessionService
 {
     private const AUTH_COOKIE = 'sorkos_login';
-    private const SESSION_TTL_DAYS = 30;
+    private const DEFAULT_SESSION_TTL_DAYS = 30;
+    private const UNLIMITED_COOKIE_TTL_DAYS = 3650;
     private const PENDING_AUTHORIZE_TTL_SECONDS = 900;
 
     private Db $db;
+    private int $sessionTtlDays;
 
-    public function __construct(Db $db)
+    public function __construct(Db $db, array $config = [])
     {
         $this->db = $db;
+        $configuredTtl = (int) ($config['app']['session_ttl_days'] ?? self::DEFAULT_SESSION_TTL_DAYS);
+        $this->sessionTtlDays = $configuredTtl === -1 || $configuredTtl > 0
+            ? $configuredTtl
+            : self::DEFAULT_SESSION_TTL_DAYS;
     }
 
     public function storePendingAuthorizeRequest(array $request): void
@@ -86,7 +92,9 @@ class SessionService
     {
         $token = bin2hex(random_bytes(32));
         $now = date('Y-m-d H:i:s');
-        $expires = date('Y-m-d H:i:s', time() + self::SESSION_TTL_DAYS * 86400);
+        $expires = $this->sessionTtlDays === -1
+            ? null
+            : date('Y-m-d H:i:s', time() + $this->sessionTtlDays * 86400);
 
         $stmt = $this->db->pdo()->prepare(
             'INSERT INTO auth_sessions
@@ -106,7 +114,7 @@ class SessionService
         ]);
 
         setcookie(self::AUTH_COOKIE, $token, [
-            'expires' => time() + self::SESSION_TTL_DAYS * 86400,
+            'expires' => $this->cookieExpiresAt(),
             'path' => '/',
             'secure' => $this->isSecureRequest(),
             'httponly' => true,
@@ -315,10 +323,11 @@ class SessionService
 
         try {
             $stmt = $this->db->pdo()->prepare(
-                'SELECT u.* FROM auth_sessions s INNER JOIN auth_users u ON u.id = s.user_id
+                'SELECT u.*, s.expires_at AS auth_session_expires_at
+                 FROM auth_sessions s INNER JOIN auth_users u ON u.id = s.user_id
                  WHERE s.session_hash = :session_hash
                  AND s.revoked_at IS NULL
-                 AND s.expires_at > NOW()
+                 AND (s.expires_at IS NULL OR s.expires_at > NOW())
                  AND u.disabled_at IS NULL
                  LIMIT 1'
             );
@@ -328,7 +337,26 @@ class SessionService
             return null;
         }
 
-        return is_array($user) ? $user : null;
+        if (!is_array($user)) {
+            return null;
+        }
+
+        if ($this->sessionTtlDays === -1 && $user['auth_session_expires_at'] !== null) {
+            $update = $this->db->pdo()->prepare(
+                'UPDATE auth_sessions SET expires_at = NULL WHERE session_hash = :session_hash'
+            );
+            $update->execute(['session_hash' => hash('sha256', $token)]);
+            setcookie(self::AUTH_COOKIE, $token, [
+                'expires' => $this->cookieExpiresAt(),
+                'path' => '/',
+                'secure' => $this->isSecureRequest(),
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
+        }
+
+        unset($user['auth_session_expires_at']);
+        return $user;
     }
 
     public function revokeCurrentSession(): bool
@@ -373,7 +401,7 @@ class SessionService
         $sql = 'SELECT id FROM auth_sessions
                 WHERE session_hash = :session_hash
                 AND revoked_at IS NULL
-                AND expires_at > NOW()';
+                AND (expires_at IS NULL OR expires_at > NOW())';
         $params = ['session_hash' => $sessionHash];
 
         if ($userId !== null) {
@@ -393,6 +421,15 @@ class SessionService
     {
         $token = (string) ($_COOKIE[self::AUTH_COOKIE] ?? '');
         return $token === '' ? '' : hash('sha256', $token);
+    }
+
+    private function cookieExpiresAt(): int
+    {
+        $ttlDays = $this->sessionTtlDays === -1
+            ? self::UNLIMITED_COOKIE_TTL_DAYS
+            : $this->sessionTtlDays;
+
+        return time() + $ttlDays * 86400;
     }
 
     private function requestHash(string $value): ?string

@@ -36,7 +36,7 @@ CREATE TABLE auth_sessions (
   session_description VARCHAR(120) NULL,
   ip_hash CHAR(64) NULL,
   created_at DATETIME NOT NULL,
-  expires_at DATETIME NOT NULL,
+  expires_at DATETIME NULL,
   revoked_at DATETIME NULL,
   KEY idx_user_id (user_id),
   KEY idx_expires_at (expires_at),

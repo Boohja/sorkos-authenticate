@@ -19,6 +19,7 @@ Every config entry added to `app/config/config.php` or `app/config/local.example
 | `timezone` | PHP timezone used for generated timestamps. |
 | `base_url` | Public base URL used as a fallback when request headers do not provide the current origin. |
 | `auth_secret` | App-wide cryptographic secret used for HMAC hashing of email login codes. Use a long random value in production. |
+| `session_ttl_days` | Lifetime of a central Sorkos Auth session in days. Defaults to `30`. Set to `-1` to disable server-side expiry. The persistent browser cookie still remains subject to browser cookie limits and user deletion. |
 
 ### `db`
 

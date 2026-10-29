@@ -9,6 +9,7 @@ return [
         'debug_footer' => false,
         'base_url' => 'https://auth.sorkos.net',
         'auth_secret' => 'replace-with-a-long-random-secret',
+        'session_ttl_days' => 30, // Use -1 to disable server-side session expiry.
     ],
     'db' => [
         'enabled' => true,

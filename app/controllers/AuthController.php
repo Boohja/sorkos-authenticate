@@ -26,7 +26,7 @@ class AuthController
 
         $client = $validation['client'];
         $i18n = I18n::fromRequest($f3, $client);
-        $session = new SessionService($f3->get('DB'));
+        $session = $this->sessions($f3);
         $pendingAuthorize = [
             'client_id' => $client['client_id'],
             'client_pk' => $client['id'],
@@ -69,7 +69,7 @@ class AuthController
         }
 
         [$i18n, $client, $pending] = $context;
-        $session = new SessionService($f3->get('DB'));
+        $session = $this->sessions($f3);
         $user = $session->currentUser();
 
         if ($user === null) {
@@ -94,7 +94,7 @@ class AuthController
         }
 
         [$i18n, $client] = $context;
-        (new SessionService($f3->get('DB')))->revokeCurrentSession();
+        $this->sessions($f3)->revokeCurrentSession();
         $this->renderLogin($f3, $i18n, $client);
     }
 
@@ -170,7 +170,7 @@ class AuthController
         }
 
         $pending['created_at'] = time();
-        (new SessionService($f3->get('DB')))->storePendingAuthorizeRequest($pending);
+        $this->sessions($f3)->storePendingAuthorizeRequest($pending);
 
         $challenge = $emailService->createCode($email, (int) $pending['client_pk']);
         $_SESSION['email_login_challenge'] = [
@@ -270,7 +270,7 @@ class AuthController
         unset($_SESSION['email_login_mail_sent']);
 
         $user = $emailService->createOrUpdateUser((string) $verified['email'], $i18n->language());
-        $session = new SessionService($f3->get('DB'));
+        $session = $this->sessions($f3);
         $session->createSession($user);
         $this->redirectToClient($f3, $session, $pending, $user);
     }
@@ -370,7 +370,7 @@ class AuthController
     {
         $data['about_url'] = '/about/';
         $data['privacy_url'] = '/privacy/';
-        $session = new SessionService($f3->get('DB'));
+        $session = $this->sessions($f3);
 
         if ($session->pendingAuthorizeRequest() === null) {
             return $data;
@@ -393,7 +393,7 @@ class AuthController
             return $data;
         }
 
-        $pending = (new SessionService($f3->get('DB')))->pendingAuthorizeRequest();
+        $pending = $this->sessions($f3)->pendingAuthorizeRequest();
 
         if ($pending === null || empty($pending['redirect_uri'])) {
             return $data;
@@ -427,7 +427,7 @@ class AuthController
 
     private function authorizeBackUrl(Base $f3): string
     {
-        return (new SessionService($f3->get('DB')))->pendingAuthorizeUrl();
+        return $this->sessions($f3)->pendingAuthorizeUrl();
     }
 
     private function externalRedirect(string $url): void
@@ -485,7 +485,7 @@ class AuthController
 
     private function pendingAuthorizeContext(Base $f3): ?array
     {
-        $session = new SessionService($f3->get('DB'));
+        $session = $this->sessions($f3);
         $pending = $session->pendingAuthorizeRequest();
         $i18n = I18n::fromRequest($f3);
 
@@ -589,7 +589,7 @@ class AuthController
             return;
         }
 
-        (new SessionService($f3->get('DB')))->storePendingAuthorizeRequest($pending);
+        $this->sessions($f3)->storePendingAuthorizeRequest($pending);
         $_SESSION['email_login_challenge'] = [
             'id' => (int) $challenge['id'],
             'selector' => (string) $challenge['selector'],
@@ -665,6 +665,11 @@ class AuthController
         $padded = str_pad(strtr($value, '-_', '+/'), strlen($value) % 4 === 0 ? strlen($value) : strlen($value) + 4 - strlen($value) % 4, '=', STR_PAD_RIGHT);
 
         return base64_decode($padded, true) ?: '';
+    }
+
+    private function sessions(Base $f3): SessionService
+    {
+        return new SessionService($f3->get('DB'), (array) $f3->get('APP_CONFIG'));
     }
 
     private function clientBranding(array $client): array

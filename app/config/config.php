@@ -27,6 +27,7 @@ $config = [
         'timezone' => 'Europe/Berlin',
         'base_url' => 'http://auth.test',
         'auth_secret' => '',
+        'session_ttl_days' => 30,
     ],
     'db' => [
         'enabled' => false,

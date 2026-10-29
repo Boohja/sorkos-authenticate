@@ -3,6 +3,50 @@
 
     var pendingForms = new WeakSet();
 
+    function initializeAdminLogin(form) {
+        var otp = form.querySelector('input[data-admin-login-otp]');
+        var otpLabel = form.querySelector('label[data-admin-login-otp]');
+        var button = form.querySelector('[data-admin-login-submit]');
+
+        if (!otp || !otpLabel || !button) {
+            return;
+        }
+
+        form.dataset.adminLoginStage = 'credentials';
+        otp.type = 'hidden';
+        otp.disabled = true;
+        otp.hidden = true;
+        otpLabel.hidden = true;
+        button.textContent = button.dataset.continueLabel || 'Continue';
+    }
+
+    function showAdminLoginOtp(form) {
+        var otp = form.querySelector('input[data-admin-login-otp]');
+        var otpLabel = form.querySelector('label[data-admin-login-otp]');
+        var button = form.querySelector('[data-admin-login-submit]');
+
+        if (!otp || !otpLabel || !button) {
+            return false;
+        }
+
+        Array.prototype.forEach.call(form.querySelectorAll('[data-admin-login-credentials]'), function (control) {
+            control.hidden = true;
+        });
+
+        form.dataset.adminLoginStage = 'otp';
+        otp.type = 'text';
+        otp.disabled = false;
+        otp.hidden = false;
+        otpLabel.hidden = false;
+        button.textContent = button.dataset.submitLabel || 'Sign In';
+
+        window.setTimeout(function () {
+            otp.focus();
+        }, 0);
+
+        return true;
+    }
+
     function beginPending(form, submitter) {
         if (pendingForms.has(form)) {
             return false;
@@ -84,6 +128,12 @@
             return;
         }
 
+        if (form.matches('[data-admin-login-form]') && form.dataset.adminLoginStage === 'credentials') {
+            event.preventDefault();
+            showAdminLoginOtp(form);
+            return;
+        }
+
         if (!beginPending(form, event.submitter)) {
             event.preventDefault();
         }
@@ -126,6 +176,7 @@
         input.placeholder = option.dataset.placeholder || '';
     }
 
+    Array.prototype.forEach.call(document.querySelectorAll('[data-admin-login-form]'), initializeAdminLogin);
     Array.prototype.forEach.call(document.querySelectorAll('[data-configuration-select]'), syncConfigurationInput);
 
     document.addEventListener('change', function (event) {
