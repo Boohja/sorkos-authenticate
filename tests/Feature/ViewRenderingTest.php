@@ -221,7 +221,7 @@ it('renders account actions and shared interaction feedback hooks', function ():
     expect($html)->toContain('data-transition-to-standard')
         ->and($html)->toContain('method="post" action="/logout"')
         ->and($html)->toContain('Log out')
-        ->and($html)->toContain('/js/app.js?v=20261029-admin-login-steps');
+        ->and($html)->toContain('/js/app.js?v=20261029-admin-login-steps-v2');
 });
 
 it('documents local product logout as the default and central logout as a special case', function (): void {

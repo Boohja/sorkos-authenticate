@@ -2,6 +2,7 @@
     'use strict';
 
     var pendingForms = new WeakSet();
+    var adminLoginOtpSteps = new WeakMap();
 
     function initializeAdminLogin(form) {
         var otp = form.querySelector('input[data-admin-login-otp]');
@@ -12,36 +13,45 @@
             return;
         }
 
+        adminLoginOtpSteps.set(form, {
+            input: otp,
+            label: otpLabel
+        });
+        otp.remove();
+        otpLabel.remove();
         form.dataset.adminLoginStage = 'credentials';
-        otp.type = 'hidden';
-        otp.disabled = true;
-        otp.hidden = true;
-        otpLabel.hidden = true;
         button.textContent = button.dataset.continueLabel || 'Continue';
     }
 
     function showAdminLoginOtp(form) {
-        var otp = form.querySelector('input[data-admin-login-otp]');
-        var otpLabel = form.querySelector('label[data-admin-login-otp]');
+        var otpStep = adminLoginOtpSteps.get(form);
         var button = form.querySelector('[data-admin-login-submit]');
+        var username = form.querySelector('input[name="username"]');
+        var password = form.querySelector('input[name="password"]');
 
-        if (!otp || !otpLabel || !button) {
+        if (!otpStep || !button || !username || !password) {
             return false;
         }
 
-        Array.prototype.forEach.call(form.querySelectorAll('[data-admin-login-credentials]'), function (control) {
-            control.hidden = true;
-        });
+        var otpForm = form.cloneNode(false);
+        var hiddenUsername = document.createElement('input');
+        var hiddenPassword = document.createElement('input');
 
-        form.dataset.adminLoginStage = 'otp';
-        otp.type = 'text';
-        otp.disabled = false;
-        otp.hidden = false;
-        otpLabel.hidden = false;
+        hiddenUsername.type = 'hidden';
+        hiddenUsername.name = username.name;
+        hiddenUsername.value = username.value;
+
+        hiddenPassword.type = 'hidden';
+        hiddenPassword.name = password.name;
+        hiddenPassword.value = password.value;
+
+        otpForm.dataset.adminLoginStage = 'otp';
         button.textContent = button.dataset.submitLabel || 'Sign In';
+        otpForm.append(hiddenUsername, hiddenPassword, otpStep.label, otpStep.input, button);
+        form.replaceWith(otpForm);
 
         window.setTimeout(function () {
-            otp.focus();
+            otpStep.input.focus();
         }, 0);
 
         return true;
